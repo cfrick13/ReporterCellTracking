@@ -13,8 +13,8 @@ A = 'G:\';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % renamemCherrytoMkate(A,B)
-% renamemWRONGtoRIGHT(A,B)
-% cd('D:\Users\zeiss\Documents\MATLAB')
+renamemWRONGtoRIGHT(A,B)
+cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
