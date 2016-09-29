@@ -8,7 +8,8 @@ primaryone = char(primarynames{1});
     finaldir = dir('*flat\');
     finaldirnames = {finaldir.name};
     %make sure you only correct '(mKate|EGFP|CFP|DIC)'
-    channelstoinput = {'_mKate','EGFP','CFP','DIC'};
+%     channelstoinput = {'_mKate','EGFP','CFP','DIC'};
+    channelstoinput = {'_mKate','_EGFP','_CFP','DIC','Hoechst'};
     channelinputs = '(';
     for i=1:length(channelstoinput)
     if i ==1
@@ -21,7 +22,7 @@ primaryone = char(primarynames{1});
     end
 
 %     p = regexp(finaldirnames,'c[0-3]');
-    p = regexp(finaldirnames,'(mKate|EGFP|CFP|DIC)');
+    p = regexp(finaldirnames,channelinputs);
     px = cellfun(@isempty,p,'UniformOutput',1);
     finaldirnames = finaldirnames(~px);
 
