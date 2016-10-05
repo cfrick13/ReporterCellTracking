@@ -156,15 +156,7 @@ else
     foldername = nucleus_seg;
 end
 
-cd(foldername)
-fflist = dir(strcat('*.tif'));
-ffnames = {fflist.name};
-[a,b,c,d] = regexp(ffnames,'t[0-9]+');
-tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
-tsn = sort(tnames);
-cd ..
-
-
+tsn = determineTimeFrame(foldername);
 
 % start
 for frames = 1:size(FinalImage,3)
@@ -294,6 +286,8 @@ Ie(a)=50;
 Ih = Ie>0;
 Im = Ih;
 
+
+%%%%% this is the ultimate addition for watershed segmentation!!!
 see = strel('disk',1);
 seo = strel('disk',8);
 Ier = Im;
@@ -301,41 +295,29 @@ Isum = Ier;
 for i=1:30
     Ier = imerode(Ier,see);
     Iero = imopen(Ier,seo);
-%     figure(55)
-%     subplot(3,3,i);imagesc(Ier)
-%     figure(455)
-%     subplot(3,3,i);imagesc(Iero);
-    Isum = Isum+Iero;
+%     Isum = Isum+(Iero.*i);
+    Isum = Isum+(Iero);
     Ier=Iero;
-%     figure(66)
-%     subplot(3,3,i);imagesc(Isum);
 end
+Isum(Isum>130) = 130;
 figure(66)
 imagesc(Isum);
-gausshed = gaussianBlurz(gaustwo,round(sigmafirst./dimdiff),round(kernelgsizefirst./dimdiff));
-% gaus = gaussianBlurz(gaus,round(sigmafirst./dimdiff),(kernelgsizefirst./dimdiff));
-% sigma=40;
-% kernelgsize=80;
-% gaus = gaussianBlurz(gaus,sigmafirst.*2,kernelgsizefirst.*2);
-
+gausshed = gaussianBlurz(Isum,round(sigmafirst./dimdiff),round(kernelgsizefirst./dimdiff));
 imgt = -double(gausshed);
-% imgt(~(Igcfopen>0)) = -Inf;
 waterBoundary = imerode(Im,strel('disk',1));
 imgt(~(waterBoundary>0)) = -Inf;
-
 L=watershed(imgt);
 
 L(waterBoundary<1) = 0;
-% imagesc(L)
-% colormap parula
 If = L>1;
+If = imerode(If,strel('disk',2));
 
 
 
 
 time = tsn{frames};
 tim = time(2:end);
-if frames==1
+if frames==10
 figure(1)
 imagesc(If)
 stophere=1;
@@ -364,14 +346,8 @@ kernelgsizefirst = firststrel.*6;
 % fracsmoothing = 0.5.*dimdiff;
 fracsmoothing = 0.5;
 
-
-cd('mKate_flat')
-fflist = dir(strcat('*.tif'));
-ffnames = {fflist.name};
-[a,b,c,d] = regexp(ffnames,'t[0-9]+');
-tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
-tsn = sort(tnames);
-cd ..
+foldername = 'mKate_flat';
+tsn = determineTimeFrame(foldername);
 
 
 
@@ -515,13 +491,7 @@ else
     foldername = nucleus_seg;
 end
 
-cd(foldername)
-fflist = dir(strcat('*.tif'));
-ffnames = {fflist.name};
-[a,b,c,d] = regexp(ffnames,'t[0-9]+');
-tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
-tsn = sort(tnames);
-cd ..
+tsn = determineTimeFrame(foldername);
 
 
 % start
@@ -677,13 +647,8 @@ if isempty(dirlist)
 else
     foldername = nucleus_seg;
 end
-cd(foldername)
-fflist = dir(strcat('*.tif'));
-ffnames = {fflist.name};
-[~,~,~,d] = regexp(ffnames,'t[0-9]+');
-tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
-tsn = sort(tnames);
-cd ..
+
+tsn = determineTimeFrame(foldername);
 
 % start
 for frames = 1:size(FinalImage,3)
@@ -849,8 +814,8 @@ cd(channel)
 fname = strcat(filename(1:a-1),channel,filename(b+1:end));
 fname = filename;
 
-[a,b] = regexp(fname,'t[0-9]+');
-fname(a:b) = time;
+[a,b] = regexp(fname,'_t[0-9]+');
+fname(a:b) = strcat('_',time);
 % % % if isempty(a)
 % % %     [a,b] = regexp(fname,'t[0-9][0-9]');
 % % %     tnum = str2double(fname(a+1:b))-1;
@@ -1139,3 +1104,18 @@ savethatimage(scenename,time,Ie,frames,filename,channel)
 end
 stophere=1;
 end
+
+
+function tsn = determineTimeFrame(foldername)
+cd(foldername)
+fflist = dir(strcat('*.tif'));
+ffnames = {fflist.name};
+[a,b,c,d] = regexp(ffnames,'_t[0-9]+');
+[a,b,c,d] = regexp(ffnames,'_t[0-9]++');
+tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
+[a,b,c,d] = regexp(tnames,'t[0-9]++');%added extra step because sometimes the time frame parsin was mistaken
+tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
+tsn = sort(tnames);
+cd ..
+end
+
