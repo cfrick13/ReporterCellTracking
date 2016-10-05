@@ -6,7 +6,8 @@ function preprocessBKGandFLATofTimeLapseImages(A,B)
 C = B;
 
 E={B}; %beginning of file name for saving
-channelstoinput = {'_mKate','_EGFP','_CFP','DIC'};
+% channelstoinput = {'_mKate','_EGFP','_CFP','DIC'};
+channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 % channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
 channelinputs = '(';
 for i=1:length(channelstoinput)
@@ -21,8 +22,8 @@ end
 
 % BACKGROUND = [13 14 15 16 17];
 % BACKGROUND = [28 29 30 31];
-% BACKGROUND = [7:11];
-BACKGROUND = [23:27];
+BACKGROUND = [25:29];
+% BACKGROUND = [33:37];
 % if strcmp(B,'2016_06_01 screen')
 % BACKGROUND = [17:21];
 % elseif  strcmp(B,'2016_05_31 screen')

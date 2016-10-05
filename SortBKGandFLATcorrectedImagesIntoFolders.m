@@ -1,7 +1,7 @@
 function SortBKGandFLATcorrectedImagesIntoFolders(A,B)
 %%
 % channelinputs = '(mKate|EGFP|CFP|DIC)';
-channelstoinput = {'mKate','EGFP','CFP','DIC'};
+channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 % channelstoinput = {'_mKate','_EGFP','_CFP','DIC'};
 
 channelinputs = '(';  % result is channelinputs = '(mKate|EGFP|CFP|DIC)';

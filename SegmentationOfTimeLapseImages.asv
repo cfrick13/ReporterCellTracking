@@ -294,24 +294,22 @@ Ie(a)=50;
 Ih = Ie>0;
 Im = Ih;
 
-see = strel('disk',1);
-seo = strel('disk',8);
+see = strel('disk',2);
+seo = strel('disk
 Ier = Im;
 Isum = Ier;
-for i=1:30
+for i=1:9
     Ier = imerode(Ier,see);
-    Iero = imopen(Ier,seo);
-%     figure(55)
-%     subplot(3,3,i);imagesc(Ier)
-%     figure(455)
-%     subplot(3,3,i);imagesc(Iero);
-    Isum = Isum+Iero;
-    Ier=Iero;
-%     figure(66)
-%     subplot(3,3,i);imagesc(Isum);
+    Iero = imopen(Ier,see);
+    figure(55)
+    subplot(3,3,i);imagesc(Ier)
+    figure(455)
+    subplot(3,3,i);imagesc(Iero);
+    Isum = Isum+Ier;
+    figure(66)
+    subplot(3,3,i);imagesc(Isum);
 end
-figure(66)
-imagesc(Isum);
+
 gausshed = gaussianBlurz(gaustwo,round(sigmafirst./dimdiff),round(kernelgsizefirst./dimdiff));
 % gaus = gaussianBlurz(gaus,round(sigmafirst./dimdiff),(kernelgsizefirst./dimdiff));
 % sigma=40;
@@ -335,7 +333,7 @@ If = L>1;
 
 time = tsn{frames};
 tim = time(2:end);
-if frames==1
+if frames==5
 figure(1)
 imagesc(If)
 stophere=1;
