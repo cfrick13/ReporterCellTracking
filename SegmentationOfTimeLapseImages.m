@@ -71,12 +71,12 @@ cd(finaldirname)
 %     segmentationRFP(FinalImage,subdirname,scenename,fname,'mKatebinary_flat');
     
 
-dirlist = dir('EGFP_flat');
+dirlist = dir('_EGFP_flat');
 if isempty(dirlist)
     dirlist = dir('mKate_flat');
     foldername = 'mKate_flat';
 else
-    foldername = 'EGFP_flat';
+    foldername = '_EGFP_flat';
 end
 cd(finaldirname)
     
@@ -217,7 +217,7 @@ kernelgsize = kernelgsizefirst;
 gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
 
 sub = double(gaus) -double(gaustwo);%%%%%%% key step!
-b = find(sub == min(min(sub)));
+b = find(sub == min(min(sub)),1,'first');
 rattio = gaustwo(b)./gaus(b);
 gaustwocorr = gaustwo./rattio;
 sub_scale_corr = double(gaus) - double(gaustwocorr);
@@ -284,7 +284,11 @@ Ie(a)=50;
 
 
 Ih = Ie>0;
-Im = Ih;
+Ihd = imdilate(Ih,strel('disk',1));
+Ihdc = imclose(Ihd,strel('disk',4));
+Ihdcf = imfill(Ihdc,'holes');
+Im = Ihdcf;
+
 
 
 %%%%% this is the ultimate addition for watershed segmentation!!!
