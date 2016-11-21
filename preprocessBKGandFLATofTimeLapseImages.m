@@ -22,7 +22,8 @@ end
 
 % BACKGROUND = [13 14 15 16 17];
 % BACKGROUND = [28 29 30 31];
-BACKGROUND = [25:29];
+% BACKGROUND = [18:22];
+BACKGROUND = [13:17];
 % BACKGROUND = [33:37];
 % if strcmp(B,'2016_06_01 screen')
 % BACKGROUND = [17:21];

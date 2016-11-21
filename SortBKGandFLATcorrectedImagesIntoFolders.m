@@ -65,6 +65,9 @@ folderlist = dir('*_s*');
                        filepath = which(cfile{1});
                        disp(filepath);
                        movefile(filepath,foldername)
+%                        cd(foldername)
+%                        movefile(filepath)
+%                        cd .. 
                     end
                 end
         end
