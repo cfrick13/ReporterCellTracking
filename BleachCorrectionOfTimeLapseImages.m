@@ -1,24 +1,31 @@
-function BleachCorrectionOfTimeLapseImages(A,B)
-primarydir = strcat(A,B,'\','flatfield_corrected');
+function BleachCorrectionOfTimeLapseImages(~,datename,channelstoinput)
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+cd(strcat(parentdir,datename))
+folderz = dir('*exp*');
+folderzname = {folderz.name};
+dirlog = [folderz.isdir];
+explist = folderzname(dirlog);
+
+for expdircell = explist
+    expdirname = char(expdircell);
+  
+
+primarydir = strcat(parentdir,datename,'\',expdirname,'\','flatfield_corrected');
 cd(primarydir)
 primarylist = dir('*_s*');
 primarynames = {primarylist.name};
 primaryone = char(primarynames{1});
-    cd(strcat(A,B,'\flatfield_corrected\',primaryone))
+    cd(strcat(primarydir,'\',primaryone))
     finaldir = dir('*flat\');
     finaldirnames = {finaldir.name};
-    %make sure you only correct '(mKate|EGFP|CFP|DIC)'
-    channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
-    channelinputs = '(';
-    for i=1:length(channelstoinput)
-    if i ==1
-    channelinputs = strcat(channelinputs,channelstoinput{i});
-    elseif i < length(channelstoinput)
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i});
-    else
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
-    end
-    end
+    
+    channelinputs =channelregexpmaker(channelstoinput);
+   
 
 %     p = regexp(finaldirnames,'c[0-3]');
 %     p = regexp(finaldirnames,'(mKate|EGFP|CFP|DIC)');
@@ -31,10 +38,10 @@ for i = 1:length(finaldirnames);
     cycle=1;
     for subdir=primarynames
     subdirname = char(subdir);
-    cd(strcat(A,B,'\flatfield_corrected\',subdirname))
-    SAVdir = strcat(A,B,'\flatfield_corrected\',subdirname,'\tiffs\');
+    cd(strcat(primarydir,'\',subdirname))
+    SAVdir = strcat(primarydir,'\',subdirname,'\tiffs\');
     finaldirname = char(finaldirnames{i});
-    cd (strcat(A,B,'\flatfield_corrected\',subdirname,'\',finaldirname));
+    cd (strcat(primarydir,'\',subdirname,'\',finaldirname));
     filelist = dir('*.tif*');
         if ~isempty(filelist)
             filenames = {filelist.name};
@@ -51,10 +58,10 @@ for i = 1:length(finaldirnames);
     
     for subdir=primarynames
     subdirname = char(subdir);
-    cd(strcat(A,B,'\flatfield_corrected\',subdirname))
-    SAVdir = strcat(A,B,'\flatfield_corrected\',subdirname,'\tiffs\');
+    cd(strcat(primarydir,'\',subdirname))
+    SAVdir = strcat(primarydir,'\',subdirname,'\tiffs\');
     finaldirname = char(finaldirnames{i});
-    cd (strcat(A,B,'\flatfield_corrected\',subdirname,'\',finaldirname));
+    cd (strcat(primarydir,'\',subdirname,'\',finaldirname));
     filelist = dir('*.tif*');
         if ~isempty(filelist)
             filenames = {filelist.name};
@@ -65,6 +72,7 @@ for i = 1:length(finaldirnames);
     
     
 end 
+end
 end
 
 
@@ -115,5 +123,19 @@ end
     for j = 1:length(filenames)
     img_bleach_corr = FinalImage(:,:,j)./normmedian(j);
     imwrite(uint16(img_bleach_corr),char(savename),'WriteMode','append');
+    end
+end
+
+
+function channelinputs =channelregexpmaker(channelstoinput)
+    channelinputs = '(';
+    for i=1:length(channelstoinput) % creates a string of from '(c1|c2|c3|c4)' for regexp functions
+        if i ==1
+        channelinputs = strcat(channelinputs,channelstoinput{i});
+        elseif i < length(channelstoinput)
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i});
+        else
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
+        end
     end
 end

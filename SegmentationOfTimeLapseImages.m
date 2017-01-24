@@ -1,15 +1,31 @@
-function  SegmentationOfTimeLapseImages(A,B)
+function  SegmentationOfTimeLapseImages(~,datename)
 
-choosefiles(A,B)
+choosefiles(datename)
 end
 
-function choosefiles(A,B)
+function choosefiles(datename)
 global nucleus_seg 
-cd (strcat(A,B,'\flatfield_corrected'));
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+cd(strcat(parentdir,datename))
+folderz = dir('*exp*');
+folderzname = {folderz.name};
+dirlog = [folderz.isdir];
+explist = folderzname(dirlog);
+
+for expdircell = explist
+    expdirname = char(expdircell);
+  
+
+primarydir = strcat(parentdir,datename,'\',expdirname,'\','flatfield_corrected');
+cd(primarydir)
 
 nucleus_seg = '_Hoechst_flat';
 % nucleus_seg = 'CFP';
-
 
 
 primarylist = dir('*_s*');
@@ -95,6 +111,7 @@ cd(finaldirname)
 end
 
 end
+end
 
 function FinalImage=loadStack(FileTif)
 % [a,b] = uigetfile;
@@ -127,19 +144,7 @@ mkdir(strcat('NucleusBinary_flat'));
 mkdir(strcat('c5_flat'));
 
 % parameters
-left = 0.004;
-slopedown = 0.003;
-
-
 dimdiff = 2048./size(FinalImage(:,:,1),1);
-
-zerostrel = 2;
-firststrel = round(30./(dimdiff.^2));
-sigmafirst = firststrel.*3;
-kernelgsizefirst = firststrel.*6;
-% fracsmoothing = 0.5.*dimdiff;
-fracsmoothing = 0.5;
-
 zerostrel = 5;
 firststrel = round(50./(dimdiff.^2));
 sigmafirst = firststrel.*5;
@@ -210,6 +215,8 @@ gaus = double(Iobrcbr);
 % imagesc(IobrcbrF);
 % subplot(3,3,6);
 % imagesc(gaus);
+% subplot(3,3,7)
+% imagesc(imgorig)
 
 
 sigma = sigmafirst;
@@ -383,7 +390,7 @@ kernelgsize = kernelgsizefirst;
 gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
 
 sub = double(gaus) -double(gaustwo);%%%%%%% key step!
-b = find(sub == min(min(sub)));
+b = find(sub == min(min(sub)),1,'first');
 rattio = gaustwo(b)./gaus(b);
 gaustwocorr = gaustwo./rattio;
 sub_scale_corr = double(gaus) - double(gaustwocorr);
@@ -475,6 +482,7 @@ function If = segmentationMNG(FinalImage,subdirname,scenename,filename,channel)
 global nucleus_seg
 fig=1;
 mkdir(strcat(channel));
+
 % parameters
 left = 0.004;
 slopedown = 0.003;
@@ -526,7 +534,7 @@ kernelgsize = kernelgsizefirst;
 gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
 
 sub = double(gaus) -double(gaustwo);%%%%%%% key step!
-b = find(sub == min(min(sub)));
+b = find(sub == min(min(sub)),1,'first');
 rattio = gaustwo(b)./gaus(b);
 gaustwocorr = gaustwo./rattio;
 sub_scale_corr = double(gaus) - double(gaustwocorr);
@@ -682,7 +690,7 @@ kernelgsize = kernelgsizefirst;
 gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
 
 sub = double(gaus) -double(gaustwo);%%%%%%% key step!
-b = find(sub == min(min(sub)));
+b = find(sub == min(min(sub)),1,'first');
 rattio = gaustwo(b)./gaus(b);
 gaustwocorr = gaustwo./rattio;
 sub_scale_corr = double(gaus) - double(gaustwocorr);

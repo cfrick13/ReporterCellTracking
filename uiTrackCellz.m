@@ -1,11 +1,15 @@
 function uiTrackCellz
-global plottingTotalOrMedian channelinputs adjuster cmapper tcontrast lcontrast ThirdPlotAxes SecondPlotAxes OGExpDate plottingON PlotAxes cmap TC A AA timeFrames framesForDir ImageDetails MainAxes SceneList displaytracking imgsize ExpDate
+global ExportNameKey ExportName exportdir plottingTotalOrMedian channelinputs adjuster cmapper tcontrast lcontrast ThirdPlotAxes SecondPlotAxes OGExpDate plottingON PlotAxes cmap TC A AA timeFrames framesForDir ImageDetails MainAxes SceneList displaytracking imgsize ExpDate
 adjuster=0;
 imgsize = [512 512];
 plottingTotalOrMedian = 'total';
 tcontrast = 99;
 lcontrast = 1;
-
+% exportdir = 'C:\Users\Kibeom\Desktop\Tracking\Export\';
+exportdir = 'D:\Frick\Tracking\Export\';
+ExportNameKey = 'final';
+ExportName = 'fricktrack';
+        
 channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 % channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
 channelinputs = '(';
@@ -41,7 +45,8 @@ plottingON =0;
 %choose directory of experiment to track
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % A = uigetdir('D:Frick\'); %choose directory
-A = strcat('D:\Users\zeiss\Pictures\Frick'); %choose directory
+A = strcat('D:\Frick\'); %choose directory
+% A = strcat('C:\Users\Kibeom\Desktop\Tracking\'); %choose directory
 % A = strcat('\Users\frick\Documents\Goentoro_Lab\DATA\current\');
 cd(A)
 A = uigetdir;
@@ -167,6 +172,11 @@ hchosenOnes = uicontrol('Style','pushbutton','String','Chosen Ones',...
     'Callback',@chosenOnes_Callback);
        mmm=mmm+1;
        mmm=mmm+1;
+       
+hRemoveArea = uicontrol('Style', 'pushbutton', 'String', 'Remove area',...
+    'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight/1.5],...
+    'Callback',@removeArea_Callback);
+        mmm= mmm+1;
 hchosenOnesEnd = uicontrol('Style','pushbutton','String','Chosen Ones EndOnly',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
     'Callback',@chosenOnesEnd_Callback);
@@ -198,7 +208,7 @@ hTrack = uicontrol('Style','pushbutton',...
     'Callback',@trackbutton_Callback);
         mmm=mmm+1;
         mmm=mmm+1;
-        mmm=mmm+1;
+%         mmm=mmm+1;
         mmm=mmm+1;
  hContrast = uicontrol('Style','pushbutton',...
     'String','contrast user',...
@@ -266,7 +276,7 @@ hLabelCells = uicontrol('Style','pushbutton',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
     'Callback',@labelCells);
         mmm=mmm+1; 
-        mmm=mmm+1; 
+%         mmm=mmm+1; 
         
         
 hcomment = uicontrol('Style','pushbutton','String','Comments',...
@@ -570,9 +580,94 @@ setSceneAndTime
 
 end
 
+%removeArea
+function removeArea_Callback(~,~)
+global  ImageDetails framesForDir Tracked imgsize
+ % choose cell
+%       [cellx,celly] = ginput(1);
+       % construct a polygon to add
+
+       If = 1;
+       button=1;
+       while button==1
+      [polyx,polyy,button] = ginput();
+      button = round(mean(button));
+      
+      if button ==1
+          M = zeros(1,length(polyx)*2);
+          M(1:2:end) = polyx;
+          M(2:2:end) = polyy;
+          zeroImage = zeros(imgsize);
+          zeroImage = insertShape(zeroImage,'FilledPolygon',M,'LineWidth',6,'Color',[1 1 1]);
+          zerogray = rgb2gray(zeroImage);
+
+          if isempty(Tracked{1}.Cellz)
+
+
+          else  %if there exists segmenttracking already...then load that. 
+
+          imagio = zeros(imgsize);
+          imagio(zerogray>0)=1;
+          cc = bwconncomp(imagio);
+          px = cc.PixelIdxList;
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %   determine the frame to load
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            t = strcmp(framesForDir,ImageDetails.Frame);
+            t = find(t==1);
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    CC = Tracked{t}.Cellz;
+    PX = CC.PixelIdxList;        
+
+    idxs = cellfun(@(x) sum(ismember(x,px{1})),PX,'UniformOutput',1);
+    index = find(idxs>1);
+        if ~isempty(index)
+            for abc = index
+            oldMass = PX{abc};
+            overlap = ismember(oldMass,px{1});
+            oldMass(overlap)=[];
+            imagio = zeros(imgsize);
+            imagio(oldMass)=1;
+            cc = bwconncomp(imagio);
+            numcells = cc.NumObjects;
+                if numcells>1
+                    splitcells = cc.PixelIdxList;
+                    PX(abc) = {NaN};
+                        for nums = 1:numcells
+                            PX{end+1} = splitcells{nums};
+                        end
+                else
+                    PX{abc} = oldMass;
+                end
+            end
+%             PX{min(index)} = unique(vertcat(oldMass,px{1}));
+%                 if length(index)>1
+%                 index(find(index == min(index)))=[];
+%                 PX(index) = {NaN};
+%                 end
+            CC.PixelIdxList = PX;
+%             end
+        end
+    CC.NumObjects = length(CC.PixelIdxList);
+        S = regionprops(CC,'Centroid');
+        Smat = vertcat(S.Centroid);
+        CC.Centroid = Smat;
+    Tracked{t}.Cellz = CC;
+          end
+
+
+
+        nextbutton_callback([],[]);
+      end 
+      end
+
+end
+
 %delete cells
 function deletebutton_Callback(~,~) 
     global imgsize ImageDetails framesForDir Tracked
+    
     
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -876,6 +971,8 @@ Tracked = Trackedz;
 
 end
 
+
+
 function dilateOnes_Callback(~,~)
 %choose the cells you want
 global ImageDetails framesForDir Tracked imgsize
@@ -990,6 +1087,9 @@ end
 Trackedz=Stacked;
 end
 
+
+
+
 %add cells and link cells
 function addareabutton_Callback(~,~) 
  global  ImageDetails framesForDir Tracked imgsize
@@ -1071,6 +1171,11 @@ Tracked{t}.Cellz = CC;
 end
 function linkCells_Callback(~,~)
 global ImageDetails framesForDir Tracked TC imgsize
+
+%this is a quick workaround to get linking working with tracking
+%trajectories on
+% TC =1;
+% setSceneAndTime
 
 button=1;
 i=1;
@@ -1311,6 +1416,7 @@ ThirdPlotAxes.XLim = ([1 size(toplot,2)]);
 ThirdPlotAxes.YLim = ([0 6]);
 
 end
+
 function [Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat)
 global plottingTotalOrMedian
 
@@ -1527,6 +1633,204 @@ mkateFC = zeros(size(mkate));
     end
     
     
+end
+function plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat)
+plotStruct = struct();
+
+plotTracesCell = cell(length(makeIMGidx),length(Tracked));
+    for i = 1:length(Tracked)
+        PXX = Tracked{i}.Cellz.PixelIdxList;
+        plotTracesCell(:,i) = PXX(makeIMG);
+    end
+    
+cd(SceneDirectoryPath)
+
+plotbc=1; %0 or 1 to chose bleach corr or not bleach corr
+    if plotbc == 0
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%   open the image files   %%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                     %  open smad img  %
+            smadimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
+            ChannelDirectory = dir(strcat('*','EGFP','*'));
+            cd(ChannelDirectory.name)
+            for k=1:length(timeFrames)
+            imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
+            smadimgstack(:,:,k) = double(imread(char(imgfile.name)));
+            end
+            cd .. 
+            
+                     %  open mKate img  %
+            mkateimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
+            ChannelDirectory = dir(strcat('*','_mKate','*'));
+            cd(ChannelDirectory.name)
+            for k=1:length(timeFrames)
+            imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
+            mkateimgstack(:,:,k) = double(imread(char(imgfile.name)));
+            end
+            cd .. 
+
+                   %    open cfp img  %
+            cfpimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
+            ChannelDirectory = dir(strcat('*','CFP','*'));
+            cd(ChannelDirectory.name)
+            for k=1:length(timeFrames)
+            imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
+            cfpimgstack(:,:,k) = double(imread(char(imgfile.name)));
+            end
+            cd ..
+                    % open background Logical img  %
+            bkglogimgstack = false(imgsize(1),imgsize(2),length(Tracked));
+            ChannelDirectory = dir(strcat('*','BKGbinary','*'));
+            cd(ChannelDirectory.name)
+            for k=1:length(timeFrames)
+            imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
+            bkgimg = imread(char(imgfile.name));
+            bkgimg(bkgimg>0) = 1;
+            bkglogimgstack(:,:,k) = ~logical(bkgimg);
+            end
+            cd ..
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+    else 
+        
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%   open the image files   %%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                        open smad img  %
+            cd(SceneDirectoryPath)
+            cd('tiffs')
+            imgfile = dir('*EGFP_flat_bleach_corr*');
+            if isempty(imgfile)
+                smadimgstack = [];
+            else
+               smadimgstack = double(loadUpTiffStack({imgfile.name}));
+            end
+                
+  
+
+%                       open cfp img  %
+            cd(SceneDirectoryPath)
+            cd('tiffs') 
+            imgfile = dir('_Hoechst_flat_bleach_corr*');
+            if isempty(imgfile)
+                cfpimgstack = [];
+            else
+                cfpimgstack = double(loadUpTiffStack({imgfile.name}));
+            end
+            cd ..
+
+%                       open mKate img  %            
+            mkateimgstack = zeros(size(smadimgstack));
+            
+            
+%                    open background Logical img  %
+            cd(SceneDirectoryPath)        
+            bkglogimgstack = false(imgsize(1),imgsize(2),length(Tracked));
+            ChannelDirectory = dir(strcat('*','BKGbinary','*'));
+            cd(ChannelDirectory.name)
+                for k=1:length(timeFrames)
+                imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
+                bkgimg = imread(char(imgfile.name));
+                bkgimg(bkgimg>0) = 1;
+                bkglogimgstack(:,:,k) = ~logical(bkgimg);
+                end
+            cd ..
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    end
+
+
+%perform bkg subtraction
+Smadbkg = zeros(1,length(timeFrames));
+Cfpbkg = zeros(1,length(timeFrames));
+mkatebkg = zeros(1,length(timeFrames));
+bkgstd = zeros(1,length(timeFrames));
+for k=1:length(timeFrames)
+    bkglog = bkglogimgstack(:,:,k);
+    smadimg = double(smadimgstack(:,:,k));
+    cfpimg = double(cfpimgstack(:,:,k));
+    mkateimg = double(mkateimgstack(:,:,k));
+    %background subtraction is just subtraction with a value
+        Smadbkg(k) = nanmedian(smadimg(bkglog));
+        Cfpbkg(k) = nanmedian(cfpimg(bkglog));
+        mkatebkg(k) = nanmedian(mkateimg(bkglog));
+        bkgstd(k) = nanstd(mkateimg(bkglog));
+        smadimgstack(:,:,k) = smadimg-Smadbkg(k);
+        cfpimgstack(:,:,k) = cfpimg-Cfpbkg(k);
+        mkateimgstack(:,:,k) = mkateimg - mkatebkg(k);
+    %background subtraction is subtraction with an interpolated image
+%         smadbkgimg = regionfill(smadimg,~bkglog);
+%         cfpbkgimg = regionfill(cfpimg,~bkglog); %fill in the regions where bkglog is 0
+%         smadimgstack(:,:,k) = smadimgstack(:,:,k)-smadbkgimg;
+%         cfpimgstack(:,:,k) = cfpimgstack(:,:,k)-cfpbkgimg;
+end
+
+
+%extract pixel intensities%%%%%%%%%%%%%%%%
+%intialize pxl arrays
+smadpxls = cell(size(plotTracesCell,1),size(plotTracesCell,2));
+cfppxls = cell(size(plotTracesCell,1),size(plotTracesCell,2));
+
+for i = 1:size(plotTracesCell,2)
+    smadimg = double(squeeze(smadimgstack(:,:,i)));
+    cfpimg = double(squeeze(cfpimgstack(:,:,i)));
+    mkateimg = double(squeeze(mkateimgstack(:,:,i)));
+    for j=1:size(plotTracesCell,1)
+    pxidx = plotTracesCell{j,i};
+        if ~isnan(pxidx)
+        smadpxls(j,i) = {smadimg(pxidx)}; %these are arrays of pixel intensity values
+        cfppxls(j,i) = {cfpimg(pxidx)};
+        mkatepxls(j,i) = {mkateimg(pxidx)};
+        else
+        smadpxls(j,i) = {123456789};
+        cfppxls(j,i) = {123456789};
+        mkatepxls(j,i) = {123456789};
+        end
+    end
+end
+
+%determine median pxl intensities
+    Smad = cellfun(@nanmedian,smadpxls,'UniformOutput',1);
+    Smad(Smad==123456789) = NaN;
+    Cfp = cellfun(@nanmedian,cfppxls,'UniformOutput',1);
+    Cfp(Cfp==123456789) = NaN;
+    mkate = cellfun(@nanmedian,mkatepxls,'UniformOutput',1);
+    mkate(mkate==123456789) = NaN;
+for i = 1:size(smadpxls,1)
+    plotStruct(i).medianNucEGFP = Smad(i,:);
+    plotStruct(i).medianNucHOECHST = Cfp(i,:);
+end
+
+%determine total pxl intensities
+    Smad = cellfun(@nansum,smadpxls,'UniformOutput',1);
+    Smad(Smad==123456789) = NaN;
+    Cfp = cellfun(@nansum,cfppxls,'UniformOutput',1);
+    Cfp(Cfp==123456789) = NaN;
+    mkate = cellfun(@nansum,mkatepxls,'UniformOutput',1);
+    mkate(mkate==123456789) = NaN;
+for i = 1:size(smadpxls,1)
+    plotStruct(i).totalNucEGFP = Smad(i,:);
+    plotStruct(i).totalNucHOECHST = Cfp(i,:);
+end
+
+%determine mean pxl intensities
+    Smad = cellfun(@nanmean,smadpxls,'UniformOutput',1);
+    Smad(Smad==123456789) = NaN;
+    Cfp = cellfun(@nanmean,cfppxls,'UniformOutput',1);
+    Cfp(Cfp==123456789) = NaN;
+    mkate = cellfun(@nanmean,mkatepxls,'UniformOutput',1);
+    mkate(mkate==123456789) = NaN;
+for i = 1:size(smadpxls,1)
+    plotStruct(i).meanNucEGFP = Smad(i,:);
+    plotStruct(i).meanNucHOECHST = Cfp(i,:);
+end
+
+
+
 end
 
 
@@ -1865,7 +2169,7 @@ end
 end
 
 function comment_CallbackJ(~,~)
-global OGExpDate displaycomments SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName OGExpDate displaycomments SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -1886,8 +2190,8 @@ cd ..
         SceneDirPath = char({pwd});
         
         
-
-        trackfile = dir('finalfricktrack.mat');
+        trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+%         trackfile = dir('finalfricktrack.mat');
         trackfilename = char({trackfile.name});
         
             if ~isempty(trackfilename)
@@ -1913,7 +2217,8 @@ cd ..
 end
 
 function exportCells(~,~)
-global OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName exportdir OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+exportStruct = struct();
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -1934,7 +2239,8 @@ cd ..
         SceneDirPath = char({pwd});
         
 
-        trackfile = dir('finalfricktrack.mat');
+        trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+%         trackfile = dir('finalfricktrack.mat');
         trackfilename = char({trackfile.name});
         
             if ~isempty(trackfilename)
@@ -1952,76 +2258,45 @@ cd ..
                 makeIMGidx = find(makeIMG==1);
                 smooththat=0;
                 [Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
-            end
-
-            
-        Smad(isnan(Smad))=0;
-        Cfp(isnan(Cfp))=0;
-            
-            
-        eggcell = cell(200,600);
-        SmadStartX = 4;
-        SmadStartY = 18;
-        CFPStartX = 4;
-        CFPStartY = 18;
-
-        for i=1:size(Smad,1)
-            for j =1:size(Smad,2)
-                eggcell(SmadStartY+i.*2,SmadStartX+j) = {Smad(i,j)};
-                eggcell(CFPStartY+(i.*2)-1,CFPStartX+j) = {Cfp(i,j)};
-            end
-        end
-        
-        
- 
-  
-fnames = fieldnames(Tracked{length(Tracked)});
-             if sum(strcmp(fnames,'comments'));
-             comments = Tracked{length(Tracked)}.comments;
-                for i=1:size(Smad,1)
-                    if ~strcmp(comments{i},'')
-                    eggcell(SmadStartY+i.*2,3:4) = {i,comments{i}}; %mNG
-                    eggcell(CFPStartY+(i.*2)-1,3:4) = {i,comments{i}}; %cfp    
-                    else
-                    eggcell(SmadStartY+i.*2,3:4) = {i,'mNG'}; %mNG
-                    eggcell(CFPStartY+(i.*2)-1,3:4) = {i,'cfp'}; %cfp
+                plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+                
+                fnames = fieldnames(plotStruct);
+                if isempty(fieldnames(exportStruct)) %if exportStruct is empty 
+                    idx = 0;
+                    for i = 1:length(plotStruct)
+                        for j = 1:length(fnames)
+                            exportStruct(idx+i).(fnames{j}) = plotStruct(i).(fnames{j});
+                            exportStruct(idx+i).scene = sceneN;
+                            exportStruct(idx+i).cellID = i;
+                        end
+                    end
+                else    %if fields are defined, append the cell data to the next available index
+                    idx = length(exportStruct);
+                    for i = 1:length(plotStruct)
+                        for j = 1:length(fnames)
+                            exportStruct(idx+i).(fnames{j}) = plotStruct(i).(fnames{j});
+                            exportStruct(idx+i).scene = sceneN;
+                            exportStruct(idx+i).cellID = i;
+                        end
                     end
                 end
-            else
-                for i=1:size(Smad,1)
-                    eggcell(SmadStartY+i.*2,3:4) = {i,'mNG'}; %mNG
-                    eggcell(CFPStartY+(i.*2)-1,3:4) = {i,'cfp'}; %cfp                    
-                end
-             end
-
-        BKGStartX = 4;
-        BKGStartY = 3;
-        for i=1:5
-            for j =1:size(Smad,2)
-%                 eggcell(BKGStartY+i.*2,BKGStartX+j) = {Smadbkg(1,j)};
-%                 eggcell(BKGStartY+(i.*2)-1,BKGStartX+j) = {Cfpbkg(1,j)};
-                eggcell(BKGStartY-2+(i.*2),BKGStartX+j) = {0};
-                eggcell(BKGStartY-2+(i.*2)-1,BKGStartX+j) = {0};
-            end
-        end
+                
+                
+%                 exportStruct(:).scene = sceneN;
         
-  
-            for i=1:3
-                eggcell(BKGStartY+i.*2,3:4) = {i,'mNG'};
-                eggcell(BKGStartY+(i.*2)-1,3:4) = {i,'cfp'};
-            end
-
-        cd('C:\Users\zeiss\Pictures\Frick\ImagingResults')
-%          cd('\Users\frick\Documents\Goentoro_Lab\DATA\ImagingResults\');
-        filename = strcat(OGExpDate,'_smad3g same cells SHEET.xlsx'); 
-        xlswrite(filename,eggcell,sceneN);
+stophere=1;
+%         xlswrite(filename,eggcell,sceneN);
+                end
     end
+        cd(exportdir)
+        filename = strcat(OGExpDate,'_tracking_export.mat'); 
+        save(filename,'exportStruct');
 end
 
 
 function xy = labelCells(~,~)
 
-global displaycomments OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName displaycomments OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -2041,8 +2316,8 @@ scenedirname = char({scenedir.name});
 cd(scenedirname)
 SceneDirPath = char({pwd});
 
-
-trackfile = dir('finalfricktrack.mat');
+trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+% trackfile = dir('finalfricktrack.mat');
 trackfilename = char({trackfile.name});
 
     if ~isempty(trackfilename)
@@ -2117,7 +2392,7 @@ end
 end
 
 function exportFrames(~,~)
-global OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -2144,7 +2419,8 @@ CENTROID = struct();
         scenedir = dir(strcat('*',sceneN,'*'));
         scenedirname = char({scenedir.name});
         cd(scenedirname)
-        trackfile = dir('finalfricktrack.mat');
+        trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+%         trackfile = dir('finalfricktrack.mat');
         trackfilename = char({trackfile.name});
 
         %%% save figure image and centroids %%%
@@ -2192,7 +2468,7 @@ CENTROID = struct();
  
 end
 function exportLabels(~,~)
-global OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings adjuster
+global ExportNameKey ExportName OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings adjuster
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -2213,7 +2489,9 @@ CENTROID = struct();
         scenedir = dir(strcat('*',sceneN,'*'));
         scenedirname = char({scenedir.name});
         cd(scenedirname)
-        trackfile = dir('finalfricktrack.mat');
+        
+        trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+%         trackfile = dir('finalfricktrack.mat');
         trackfilename = char({trackfile.name});
 
         %%% save figure image and centroids %%%
@@ -2301,9 +2579,9 @@ setSceneAndTime;
 end
 
 function Tracked = loadTrackedStructure
-global SceneDirectoryPath timeFrames TC
+global SceneDirectoryPath timeFrames TC ExportName
 cd(SceneDirectoryPath)
-trackfile = dir('*fricktrack.mat');
+trackfile = dir(strcat('*',ExportName,'.mat'));
 if ~isempty(trackfile)
     trackfilelist = {trackfile.name};
     Selection=[];
@@ -2484,15 +2762,16 @@ trt = calculateTrackingLogical(Stacked);
 %add the number of NaN remaining
 idxo = ~logical(trt);  %set value of 1 where trt = 0;
 didxo = diff(idxo,[],2);
-    for j=1:size(didxo,1)
+    for j=1:size(didxo,1) 
     %if you ever find a negative 1, you can never have a positive 1 afterward
     beginoftrack = find(idxo(j,:)==1,1,'first');%first frame of first tracked cell
     endoftrack = find(didxo(j,:)==-1,1,'last');%last frame of last tracked cell
-    fni = find(didxo(j,:)== -1);
-    fi = find(didxo(j,:)==1);
+    fni = find(didxo(j,:)== -1); %frame at which tracking ends
+    fi = find(didxo(j,:)==1); %frame where tracking begins again
 
     fi = fi(fi>beginoftrack);
-    fni = fni(fni==endoftrack | fni<endoftrack);
+%     fni = fni(fni==endoftrack | fni<endoftrack); %original code
+    fni = fni(fni<endoftrack);
 
     if j==120
         stophere=1;
@@ -3111,12 +3390,12 @@ end
 
 %% saving functions
 function saveTrackingFileAs_callback(~,~)
-global  SceneDirectoryPath Tracked
+global  SceneDirectoryPath Tracked ExportName
 cd(SceneDirectoryPath)
 prompt = 'filename of tracking structure to be saved?';
 dlg_title = 'save tracking structure as...specific filename';
 filename = char(inputdlg(prompt,dlg_title));
-save(strcat(filename,'fricktrack.mat'),'Tracked')
+save(strcat(filename,ExportName,'.mat'),'Tracked')
 end
 function saveTrackingFileAs_callbackJ(~,~,SceneDirPath)
 global   Tracked
@@ -3124,6 +3403,9 @@ cd(SceneDirPath)
 % prompt = 'filename of tracking structure to be saved?';
 % dlg_title = 'save tracking structure as...specific filename';
 % filename = char(inputdlg(prompt,dlg_title));
+disp(iixixixi)
+%why am i saving a specific file name without asking if I want to
+%overwrite?
 save(strcat('finalfricktrack.mat'),'Tracked')
 end
 function saveTrackingFile

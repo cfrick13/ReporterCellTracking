@@ -4,13 +4,12 @@ function preprocessBKGandFLATofTimeLapseImages(A,B)
 % A = 'D:\Frick\';
 % B = '2015_12_15 smad3g smFISH';
 C = B;
-
 E={B}; %beginning of file name for saving
 % channelstoinput = {'_mKate','_EGFP','_CFP','DIC'};
 channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 % channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
 channelinputs = '(';
-for i=1:length(channelstoinput)
+for i=1:length(channelstoinput) % creates a string of from '(c1|c2|c3|c4)' for regexp functions
     if i ==1
     channelinputs = strcat(channelinputs,channelstoinput{i});
     elseif i < length(channelstoinput)
@@ -20,21 +19,9 @@ for i=1:length(channelstoinput)
     end
 end
 
-% BACKGROUND = [13 14 15 16 17];
-% BACKGROUND = [28 29 30 31];
-% BACKGROUND = [18:22];
-BACKGROUND = [13:17];
-% BACKGROUND = [33:37];
-% if strcmp(B,'2016_06_01 screen')
-% BACKGROUND = [17:21];
-% elseif  strcmp(B,'2016_05_31 screen')
-%     BACKGROUND = [25:29];
-% end
+BACKGROUND = [56:60];
 
-
-BACKdir = strcat(A,B,'\back');mkdir (BACKdir);
 DIRone = strcat(A,B,'\',C);
-
 cd(DIRone);
 dirlist = dir('*.tif');
 [~,~,~,ScenesListed] = regexp([dirlist.name],'s[0-9]+');
