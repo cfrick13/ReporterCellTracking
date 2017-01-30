@@ -17,7 +17,7 @@ explist = folderzname(dirlog);
 
 for expdircell = explist
     expdirname = char(expdircell);
-    DIRone = strcat(parentdir,datename,'\',expdirname);
+    DIRone = strcat(parentdir,datename);
     cd(DIRone);
     cd ('flatfield_corrected')
 

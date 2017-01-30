@@ -29,17 +29,17 @@ B = BB{1};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 BACKGROUND = [101:106];
-BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
+% BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SortBKGandFLATcorrectedImagesIntoFolders(A,B,channelstoinput);
+% SortBKGandFLATcorrectedImagesIntoFolders(A,B,channelstoinput);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
+% BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

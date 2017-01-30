@@ -21,10 +21,10 @@ for expdircell = explist
     expdirname = char(expdircell);
   
 
-primarydir = strcat(parentdir,datename,'\',expdirname,'\','flatfield_corrected');
+primarydir = strcat(parentdir,datename,'\','flatfield_corrected');
 cd(primarydir)
 
-nucleus_seg = '_Hoechst_flat';
+nucleus_seg = '_mKate_flat';
 % nucleus_seg = 'CFP';
 
 
@@ -39,8 +39,8 @@ subd = {primarylist.name};
 for i=1:length(subd)
     subdir = subd{i};
     subdirname = char(subdir);
-        sceneinfo = regexp(subdirname,'s[0-9]+');
-        scenename = subdirname(sceneinfo:sceneinfo+2);
+        [sceneinfo,b] = regexp(subdirname,'s[0-9]+');
+        scenename = subdirname(sceneinfo:b);
         cd(subdirname)
     finaldir = dir('*tiffs*');
         finaldirname = char({finaldir.name});

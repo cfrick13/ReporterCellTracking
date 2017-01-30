@@ -15,7 +15,7 @@ for expdircell = explist
     expdirname = char(expdircell);
   
 
-primarydir = strcat(parentdir,datename,'\',expdirname,'\','flatfield_corrected');
+primarydir = strcat(parentdir,datename,'\','flatfield_corrected');
 cd(primarydir)
 primarylist = dir('*_s*');
 primarynames = {primarylist.name};

@@ -1,7 +1,17 @@
-function plot_exportStruct(exportStruct)
+function plot_exportStruct
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+cd(strcat(parentdir,'Tracking\Export'));
+
+A = uigetfile;%choose file to load
+load(A)
 
 timeInterval = 4; %minutes
-stimulationFrame = 9; %frame immediately preceeding stimulation
+stimulationFrame = 1; %frame immediately preceeding stimulation
 cellTracesString = 'medianNucEGFP'; %value to plot
 finalFrame = 50; %choose which you want to be your final frame
 
@@ -9,7 +19,8 @@ finalFrame = 50; %choose which you want to be your final frame
     
 coloringChoice = 'scene'; %choose which field based upon which each cell trace will get colored
 % indicesChoice = {'s06','s11','s19'};
-indicesChoice = 's06|s11|s19';
+% indicesChoice = 's06|s11|s19';
+indicesChoice = 's010';
 coloringArray = vertcat({exportStruct.(coloringChoice)});
 [~,~,~,d] =  regexp(coloringArray,indicesChoice);
 dmat = cellfun(@isempty,d);

@@ -6,10 +6,11 @@ plottingTotalOrMedian = 'total';
 tcontrast = 99;
 lcontrast = 1;
 % exportdir = 'C:\Users\Kibeom\Desktop\Tracking\Export\';
-exportdir = 'D:\Frick\Tracking\Export\';
 ExportNameKey = 'final';
 ExportName = 'fricktrack';
         
+
+
 channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 % channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
 channelinputs = '(';
@@ -44,10 +45,17 @@ plottingON =0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %choose directory of experiment to track
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% A = uigetdir('D:Frick\'); %choose directory
-A = strcat('D:\Frick\'); %choose directory
-% A = strcat('C:\Users\Kibeom\Desktop\Tracking\'); %choose directory
-% A = strcat('\Users\frick\Documents\Goentoro_Lab\DATA\current\');
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+cd(parentdir)
+
+exportdir = strcat(parentdir,'Tracking\Export\');
+
+A = parentdir;
 cd(A)
 A = uigetdir;
 AA = 'D:\Users\zeiss\Documents\MATLAB';
@@ -62,7 +70,11 @@ subdirname = 'flatfield_corrected';
 
 %first determine how many scenes are present
 dirlist = dir(subdirname);
-[~,~,~,SceneList] = regexp([dirlist.name],'s[0-9][0-9]');
+% [~,~,~,SceneList] = regexp([dirlist.name],'s[0-9]+');
+[~,~,~,d] = regexp({dirlist.name},'s[0-9]+');
+dlog = ~cellfun(@isempty,d,'UniformOutput',1); 
+dcell = d(dlog);
+SceneList = cellfun(@(x) x{1},dcell,'UniformOutput',0);
 
 %determine the number of images in sequence (time points)
 cd (subdirname)
@@ -70,9 +82,8 @@ cd (subdirname)
 
 %determine date of experiment
 [a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,b] = regexp(ExpDate,'_');ExpDate(a) = '-';
+ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
 %determine number of frames in each experiment
-folderlist = dir('*s01*');
 folderlist = dir(strcat('*',SceneList{1},'*'));
 foldername = folderlist.name;
 
@@ -83,7 +94,7 @@ cd ..
 
 %determine date of experiment
 [a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,b] = regexp(ExpDate,'_');ExpDate(a) = '-';
+ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1714,7 +1725,7 @@ plotbc=1; %0 or 1 to chose bleach corr or not bleach corr
 %                       open cfp img  %
             cd(SceneDirectoryPath)
             cd('tiffs') 
-            imgfile = dir('_Hoechst_flat_bleach_corr*');
+            imgfile = dir('_mKate_flat_bleach_corr*');
             if isempty(imgfile)
                 cfpimgstack = [];
             else
@@ -1802,7 +1813,7 @@ end
     mkate(mkate==123456789) = NaN;
 for i = 1:size(smadpxls,1)
     plotStruct(i).medianNucEGFP = Smad(i,:);
-    plotStruct(i).medianNucHOECHST = Cfp(i,:);
+    plotStruct(i).medianNucRFP = Cfp(i,:);
 end
 
 %determine total pxl intensities
@@ -1814,7 +1825,7 @@ end
     mkate(mkate==123456789) = NaN;
 for i = 1:size(smadpxls,1)
     plotStruct(i).totalNucEGFP = Smad(i,:);
-    plotStruct(i).totalNucHOECHST = Cfp(i,:);
+    plotStruct(i).totalNucRFP = Cfp(i,:);
 end
 
 %determine mean pxl intensities
@@ -1826,7 +1837,7 @@ end
     mkate(mkate==123456789) = NaN;
 for i = 1:size(smadpxls,1)
     plotStruct(i).meanNucEGFP = Smad(i,:);
-    plotStruct(i).meanNucHOECHST = Cfp(i,:);
+    plotStruct(i).meanNucRFP = Cfp(i,:);
 end
 
 
@@ -3438,7 +3449,7 @@ end
 function [timeFrames,framesForDir] = determineTimeFrames(spec_directory)
 dirlist = dir('_Hoechst_flat');
 if isempty(dirlist)
-    foldername = 'mKate_flat';
+    foldername = '_mKate_flat';
 else
     foldername = '_Hoechst_flat';
 end
