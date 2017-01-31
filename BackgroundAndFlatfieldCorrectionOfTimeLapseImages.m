@@ -37,6 +37,37 @@ for expdircell = explist
     
     
     
+    
+    %create the median stack of media only images for all timepoints for
+    %each channel -- these will be used for flatfield correction in next
+    %step
+    for DIRflats = {DIRone} %choose directory (this is a remant of splitz)
+        DIRflat = char(DIRflats);
+        cd (DIRflat)
+        
+        for channel = channelList %cycle through one channel at a time
+            chan = char(channel);
+            
+            normBkgimgMat = zeros(512,512,length(timeList));
+            parfor i = 1:length(timeList)
+                tpoints = timeList{i};
+                bkimg = medianBKG(BACKGROUND,tpoints,chan); %load background images and compile into one median image
+                bkShape = reshape(bkimg,[1 size(bkimg,2).*size(bkimg,1)]);
+                bkSort = sort(bkShape(~isnan(bkShape)));
+                normalizedBkgimg = (double(bkimg)./mean([bkSort(round(length(bkSort).*0.9999)) bkSort(round(length(bkSort).*0.99999))]));
+                normBkgimgMat(:,:,i) = normalizedBkgimg;
+            end
+            [a,~] = regexp(chan,'_');
+            chanstruct = chan;
+            chanstruct(a) = [];
+            bkgimgstruct.(chanstruct)=normBkgimgMat;
+        end
+    end
+    
+    
+    
+    
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %make folders for each scene
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,42 +87,50 @@ for expdircell = explist
 
         cd (DIRflat)
 
-    for channel = channelList %cycle through one channel at a time
-    filelist = dir(strcat('*',char(channel),'*.tif'));
-    cfile = {filelist.name};
+        for channel = channelList %cycle through one channel at a time
+        filelist = dir(strcat('*',char(channel),'*.tif'));
+        cfile = {filelist.name};
 
-    % for j = 1:length(cfile) %load image and determine scene and timepoint and channel
 
-    parfor j = 1:length(cfile) %load image and determine scene and timepoint and channel
-        filename = char(cfile(j));
-        img = imread(filename);
+    %     for j = 1:length(cfile) %load image and determine scene and timepoint and channel
+            parfor j = 1:length(cfile) %load image and determine scene and timepoint and channel
+                filename = char(cfile(j));
+                img = imread(filename);
 
-        [a,b] = regexp(filename,'s[0-9]+'); %determine scene
-        scene = filename(a:b);
+                [a,b] = regexp(filename,'s[0-9]+'); %determine scene
+                scene = filename(a:b);
 
-        [c,d] = regexp(filename,'t[0-9]+'); %determine timepoint
-        if ~isempty(c)
-            tpoint = filename(c:d);
-            tpoints = tpoint;
-        else
-            tpoint='t00';
-            tpoints = '*';
+                [c,d] = regexp(filename,'t[0-9]+'); %determine timepoint
+                if ~isempty(c)
+                    tpoint = filename(c:d);
+                    tpoints = tpoint;
+                else
+                    tpoint='t00';
+                    tpoints = '*';
+                end
+
+
+                [e,f] = regexp(filename,channelinputs); %determine channel
+                chan = filename(e:f);
+                    [a,~] = regexp(chan,'_');
+                    chanstruct = chan;
+                    chanstruct(a) = [];
+                    tlog = strcmp(timeList,tpoints);
+                    i = find(tlog==1);
+        %         bkimg = medianBKG(BACKGROUND,tpoints,chan); %load background images and compile into one median image
+        %         bkShape = reshape(bkimg,[1 size(bkimg,2).*size(bkimg,1)]);
+        %         bkSort = sort(bkShape(~isnan(bkShape)));
+        %         normalizedBkgimg = (double(bkimg)./mean([bkSort(round(length(bkSort).*0.9999)) bkSort(round(length(bkSort).*0.99999))]));
+                normBkgimgMat = bkgimgstruct.(chanstruct);
+                normalizedBkgimg = normBkgimgMat(:,:,i);
+
+                flat = uint16(double(img)./normalizedBkgimg); %flatten the experimental image with the background image
+                savename = strcat(E,'_flat_',scene,'_',tpoint,'_',chan,'.tif');
+                SAVdir = strcat(parentdir,datename,'\flatfield_corrected\',E{1},'_scene_',scene);
+                savethatimage(savename,SAVdir,flat,DIRflat,j);
+%                 stophere=1;
+            end
         end
-
-        [e,f] = regexp(filename,channelinputs); %determine channel
-        chan = filename(e:f);
-
-        bkimg = medianBKG(BACKGROUND,tpoints,chan); %load background images and compile into one median image
-        bkShape = reshape(bkimg,[1 size(bkimg,2).*size(bkimg,1)]);
-        bkSort = sort(bkShape(~isnan(bkShape)));
-        normalizedBkgimg = (double(bkimg)./mean([bkSort(round(length(bkSort).*0.9999)) bkSort(round(length(bkSort).*0.99999))]));
-
-        flat = uint16(double(img)./normalizedBkgimg); %flatten the experimental image with the background image
-        savename = strcat(E,'_flat_',scene,'_',tpoint,'_',chan,'.tif');
-        SAVdir = strcat(parentdir,datename,'\flatfield_corrected\',E{1},'_scene_',scene);
-        savethatimage(savename,SAVdir,flat,DIRflat,j);
-    end
-    end
     end
 end
 
