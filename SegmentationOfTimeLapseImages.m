@@ -1,4 +1,25 @@
 function  SegmentationOfTimeLapseImages(~,datename)
+global pStruct
+
+pStruct = struct();
+parameterDefaults = [106 106 40;...
+                    0.5 0.5 1.3;...
+                    20 20 5;...
+                    1 1 1];
+                    
+parameterStrings = {'nucDiameter','threshFactor','sigmaScaledToParticle','noparametercurrently'};
+channelList = {'DIC','EGFP','mKate'};
+
+for p = 1:length(parameterStrings)
+    pString = char(parameterStrings{p});
+    for c = 1:length(channelList)
+        cString = char(channelList{c});
+        pStruct.(cString).(pString) = parameterDefaults(p,c); 
+    end
+end
+
+
+
 
 choosefiles(datename)
 end
@@ -21,7 +42,7 @@ for expdircell = explist
     expdirname = char(expdircell);
   
 
-primarydir = strcat(parentdir,datename,'\','flatfield_corrected');
+primarydir = strcat(parentdir,datename,'/','flatfield_corrected');
 cd(primarydir)
 
 nucleus_seg = '_mKate_flat';
@@ -66,7 +87,7 @@ cd(finaldirname)
     fname = filelist(1).name;
     cd ..
     disp(scenename)
-    segmentationNucleus(FinalImage,subdirname,scenename,fname,'NucleusBinary_flat');
+    segmentationNucleus(FinalImage,'mKate',scenename,fname,'NucleusBinary_flat');
 
 dirlist = dir('mKate_flat');
 if isempty(dirlist)
@@ -106,7 +127,8 @@ cd(finaldirname)
     cd ..
     segmentationMNG(FinalImage,subdirname,scenename,fname,'EGFPbinary_flat');
     stophere=1;
-    segmentationBKGsecond(FinalImage,subdirname,scenename,fname,'BKGbinary_flat');
+%     segmentationBKGsecond(FinalImage,subdirname,scenename,fname,'BKGbinary_flat');
+    segmentationEGFP(FinalImage,'EGFP',scenename,fname,'BKGbinary_flat');
     cd ..
 end
 
@@ -136,8 +158,166 @@ end
 
 
 
+function If = segmentationNucleus(FinalImage,channel,scenename,filename,segchannel)
+global  pStruct 
+% cd(subdirname)
+mkdir(strcat(segchannel));
 
-function If = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel)
+foldername = '_mKate_flat';
+tsn = determineTimeFrame(foldername);
+
+% channel ='mKate';
+% parameters
+nucDiameter = pStruct.(channel).nucDiameter;
+threshFactor = pStruct.(channel).threshFactor;
+sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+finalerode=2;
+
+
+
+% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
+
+%start
+for frames = 1:size(FinalImage,3)
+%Smooth Image using Anisotropic Diffusion
+% Options.Scheme :  The numerical diffusion scheme used
+%                     'R', Rotation Invariant, Standard Discretization 
+%                          (implicit) 5x5 kernel (Default)
+%                     'O', Optimized Derivative Kernels
+%                     'I', Implicit Discretization (only works in 2D)
+%                     'S', Standard Discretization
+%                     'N', Non-negativity Discretization
+%   Options.T  :      The total diffusion time (default 5)
+%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
+%                     defaults to 1, in case of scheme S or N defaults to
+%                     0.15. 
+%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
+%                     image Hessian, default 1.                   
+%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
+%                     Hessian, default 1.
+%   Options.verbose : Show information about the filtering, values :
+%                     'none', 'iter' (default) , 'full'
+%   Options.eigenmode : There are many different equations to make an diffusion tensor,
+%						this value (only 3D) selects one.
+%					    0 (default) : Weickerts equation, line like kernel
+%						1 : Weickerts equation, plane like kernel
+%						2 : Edge enhancing diffusion (EED)
+%						3 : Coherence-enhancing diffusion (CED)
+%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+    img = FinalImage(:,:,frames); 
+    imgRaw = img;
+        Options.T = 5;
+        Options.dt = 1;
+        Options.Scheme = 'R';
+        Options.rho = 5;
+        Options.sigma = 5;
+        Options.verbose = 'none';
+%     imgRawDenoised = CoherenceFilter(imgRaw, Options);
+imgRawDenoised = double(imgRaw);
+
+    
+    %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
+    %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
+    %nuclei -- diameter of nuclei is about 50 to 60))
+    kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+    sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+
+
+    %determine the threshold by looking for minima in log-scaled histogram
+    %of pixels from rawMinusLPScaled
+    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:prctile(vec,99));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.1*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Ih = ~subzero;
+
+%     Ihd = imdilate(Ih,strel('disk',1));
+%     Ihdc = imclose(Ihd,strel('disk',2));
+%     Ihdcf = imfill(Ihdc,'holes');
+%     Im = Ihdcf;
+    Ihc = imclose(Ih,strel('disk',4));
+    Ihcf = imfill(Ihc,'holes');
+    Im=Ihcf;
+
+
+
+    %%%%% this is the ultimate addition for watershed segmentation!!!
+    see = strel('disk',1);
+    seo = strel('disk',8);
+    Isum = Im;
+    Ier = Isum;
+%     figure(2)
+    for i=1:(nucDiameter/2)
+        Ier = imerode(Ier,see);
+%                 subplot(1,2,1);
+%                 imagesc(Ier)
+%         Iero = imopen(Ier,seo);
+    %     Isum = Isum+(Iero.*i);
+        Isum = Isum+Ier;
+%                 subplot(1,2,2);
+%                 imagesc(Isum)
+%                 drawnow
+%                 pause(0.1)
+%         Ier=Iero;
+%  disp(max(max(Isum)))
+    end
+    Isum(Isum>nucDiameter) = nucDiameter;
+
+    gausshed = gaussianBlurz(Isum,ceil(sigma./4),ceil(kernelgsize./1));
+    imgt = -double(gausshed);
+    waterBoundary = imerode(Im,strel('disk',1));
+    imgt(~(waterBoundary>0)) = -Inf;
+    L=watershed(imgt);
+
+    L(waterBoundary<1) = 0;
+    If = L>1;
+%     If = imerode(If,strel('disk',finalerode));
+
+
+    
+    time = tsn{frames};
+    tim = time(2:end);
+    IfFinal(:,:,frames)=If;
+    savethatimage(scenename,time,If.*255,frames,filename,segchannel)
+end
+
+stophere=1;
+end
+
+function If = segmentationNucleusOld(FinalImage,subdirname,scenename,filename,channel)
 global nucleus_seg
 fig=1;
 mkdir(strcat('NucleusBinary_flat'));
@@ -817,6 +997,151 @@ end
 
 
 end
+
+function If = segmentationEGFP(FinalImage,channel,scenename,filename,segchannel)
+global  pStruct nucleus_seg
+mkdir(strcat(segchannel));
+
+foldername = '_mKate_flat';
+tsn = determineTimeFrame(foldername);
+
+% parameters
+nucDiameter = pStruct.(channel).nucDiameter;
+threshFactor = pStruct.(channel).threshFactor;
+sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+
+finalerode=2;
+
+
+
+% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
+
+%start
+for frames = 1:size(FinalImage,3)
+%Smooth Image using Anisotropic Diffusion
+% Options.Scheme :  The numerical diffusion scheme used
+%                     'R', Rotation Invariant, Standard Discretization 
+%                          (implicit) 5x5 kernel (Default)
+%                     'O', Optimized Derivative Kernels
+%                     'I', Implicit Discretization (only works in 2D)
+%                     'S', Standard Discretization
+%                     'N', Non-negativity Discretization
+%   Options.T  :      The total diffusion time (default 5)
+%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
+%                     defaults to 1, in case of scheme S or N defaults to
+%                     0.15. 
+%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
+%                     image Hessian, default 1.                   
+%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
+%                     Hessian, default 1.
+%   Options.verbose : Show information about the filtering, values :
+%                     'none', 'iter' (default) , 'full'
+%   Options.eigenmode : There are many different equations to make an diffusion tensor,
+%						this value (only 3D) selects one.
+%					    0 (default) : Weickerts equation, line like kernel
+%						1 : Weickerts equation, plane like kernel
+%						2 : Edge enhancing diffusion (EED)
+%						3 : Coherence-enhancing diffusion (CED)
+%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+    img = FinalImage(:,:,frames); 
+    imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
+
+    imgW = wiener2(img,[1 20]);
+    imgWW = wiener2(imgW,[20 1]);
+    imgWWW = wiener2(imgWW,[5 5]);
+    imgRawDenoised = double(imgWWW);
+    denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+    highpoints = prctile(denoiseVec,95);
+    imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
+    
+%         Options.T = 5;
+%         Options.dt = 1;
+%         Options.Scheme = 'R';
+%         Options.rho = 20;
+%         Options.sigma = 20;
+%         Options.verbose = 'none';ii
+% %     imgRawDenoised = CoherenceFilter(imgRaw, Options);
+% % imgRawDenoised = imgRaw;
+
+    
+    %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
+    %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
+    %nuclei -- diameter of nuclei is about 50 to 60))
+    
+    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+
+
+    %determine the threshold by looking for minima in log-scaled histogram
+    %of pixels from rawMinusLPScaled
+    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.4*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown-1);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Ih = ~subzero;
+
+%     Ihd = imdilate(Ih,strel('disk',1));
+%     Ihdc = imclose(Ihd,strel('disk',2));
+%     Ihdcf = imfill(Ihdc,'holes');
+%     Im = Ihdcf;
+    Ihc = imclose(Ih,strel('disk',20));
+    Ihcf = imfill(Ihc,'holes');
+%     Ihcf = Ihc;
+    Ihcfd = imdilate(Ihcf,strel('disk',20));
+%     Ihcfd = Ihcf;
+    Im=Ihcfd;
+    If =Im;
+
+
+
+
+
+    
+    time = tsn{frames};
+    tim = time(2:end);
+%     IfFinal(:,:,frames)=If;
+    savethatimage(scenename,time,If.*255,frames,filename,segchannel)
+end
+
+
+stophere=1;
+end
+
+
+
 
 
 function savethatimage(scenename,time,Ie,frames,filename,channel)

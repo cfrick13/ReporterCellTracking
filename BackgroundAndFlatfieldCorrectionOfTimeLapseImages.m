@@ -71,11 +71,13 @@ for expdircell = explist
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %make folders for each scene
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    cd (strcat(parentdir,datename,'\flatfield_corrected')); 
     for scenedir = sceneList
         scene = scenedir{1};
     %     sceneN = str2num(scene(2:end));
     %     scenenum = scenestring(sceneN); 
         scenefile{1} = strcat(E{1},'_scene_',scene);
+        
         mkdir(scenefile{1});
     end 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%

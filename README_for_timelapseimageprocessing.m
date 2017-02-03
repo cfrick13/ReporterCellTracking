@@ -19,7 +19,8 @@ channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 A = 'D:\Frick\';
 
 %for loop iterating through subdirectories
-for BB = {'2017_01_21 plate'};
+% for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
+for BB = {'2017_01_30 plate'};
 B = BB{1};
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % renamemCherrytoMkate(A,B)
@@ -28,7 +29,17 @@ B = BB{1};
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-BACKGROUND = [101:106];
+if strcmp(B,'2017_01_22 plate')
+    BACKGROUND = [41:45];
+elseif strcmp(B,'2017_01_25 plate')
+    BACKGROUND = [38:42];
+elseif  strcmp(B,'2017_01_27 plate')
+    BACKGROUND = [91 92 93 94 96];
+elseif  strcmp(B,'2017_01_30 plate')
+    BACKGROUND = [17:21];
+end
+
+
 % BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,7 +54,7 @@ BACKGROUND = [101:106];
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 SegmentationOfTimeLapseImages(A,B);
 % renameDirectoryItems
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

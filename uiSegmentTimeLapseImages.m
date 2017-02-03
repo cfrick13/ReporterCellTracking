@@ -1,34 +1,18 @@
-function uiTrackCellz
-global ExportNameKey ExportName exportdir plottingTotalOrMedian channelinputs adjuster cmapper tcontrast lcontrast ThirdPlotAxes SecondPlotAxes OGExpDate plottingON PlotAxes cmap TC A AA timeFrames framesForDir ImageDetails MainAxes SceneList displaytracking imgsize ExpDate
+function  uiSegmentTimeLapseImages
+
+global denoisepath  sliderOne sliderOneTxt pStruct subaxes   exportdir  channelinputs adjuster cmapper tcontrast lcontrast   OGExpDate   cmap  A AA timeFrames framesForDir ImageDetails  SceneList  imgsize ExpDate
 adjuster=0;
 imgsize = [512 512];
-plottingTotalOrMedian = 'total';
 tcontrast = 99;
 lcontrast = 1;
-% exportdir = 'C:\Users\Kibeom\Desktop\Tracking\Export\';
-ExportNameKey = 'final';
-ExportName = 'fricktrack';
-        
 
 
 channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
-% channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
-channelinputs = '(';
-for i=1:length(channelstoinput)
-    if i ==1
-    channelinputs = strcat(channelinputs,channelstoinput{i});
-    elseif i < length(channelstoinput)
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i});
-    else
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
-    end
-end
+channelinputs =channelregexpmaker(channelstoinput);
 
 clearvars -global SceneDirectoryPath
 
-TC = 1;
 ImageDetails = InitializeImageDetails;
-displaytracking = 0;
 
 %%% set colormap for the images %%%
 cmap = colormap(gray(255));
@@ -40,11 +24,11 @@ cmapper = cmap;
 close all
 
 
-plottingON =0;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %choose directory of experiment to track
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%set directory to location of code being used (generally external harddrive
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
         if isempty(b)
@@ -52,11 +36,12 @@ mdir = mfilename('fullpath');
         end
     parentdir = mdir(1:b(end-1));
 cd(parentdir)
-
+denoisepath = strcat(parentdir,'Tracking/coherencefilter_version5b/');
+addpath(denoisepath);
 exportdir = strcat(parentdir,'Tracking\Export\');
 
-A = parentdir;
-cd(A)
+
+%set parent directory
 A = uigetdir;
 AA = 'D:\Users\zeiss\Documents\MATLAB';
 cd(A)
@@ -70,31 +55,38 @@ subdirname = 'flatfield_corrected';
 
 %first determine how many scenes are present
 dirlist = dir(subdirname);
-% [~,~,~,SceneList] = regexp([dirlist.name],'s[0-9]+');
 [~,~,~,d] = regexp({dirlist.name},'s[0-9]+');
 dlog = ~cellfun(@isempty,d,'UniformOutput',1); 
 dcell = d(dlog);
 SceneList = cellfun(@(x) x{1},dcell,'UniformOutput',0);
 
-%determine the number of images in sequence (time points)
-cd (subdirname)
-
-
 %determine date of experiment
+cd (subdirname)
 [a,b] = regexp(A,'201[0-9]');
 ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
-%determine number of frames in each experiment
+
+%determine the number of time frames per scene
 folderlist = dir(strcat('*',SceneList{1},'*'));
 foldername = folderlist.name;
-
 cd (char(foldername))
-spec_directory = '_Hoechst_flat';
+spec_directory = '_mKate_flat';
 [timeFrames,framesForDir] = determineTimeFrames(spec_directory);
 cd .. 
 
-%determine date of experiment
-[a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
+
+%determine the number of channels
+folderlist = dir(strcat('*','*'));
+    [~,~,~,channelsListed] = regexp([folderlist.name],channelinputs);
+    channelList = unique(channelsListed);
+            for i=1:length(channelList)
+                chan = channelsListed{i};
+                [a,~] = regexp(chan,'_');
+                chan(a) = [];
+                channelList{i} = chan;
+            end
+            
+    
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -113,203 +105,226 @@ ypositions = sort([100:20:1000],'descend');
 xpositions = ones(1,length(ypositions)).*1600;
 
         mmm=1;
-htexttwo = uicontrol('Style','text','String','To choose channel push 1, 2, or 3',...
+% htexttwo 
+uicontrol('Style','text','String','To choose channel push 1, 2, or 3',...
           'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight]);
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
+        mmm=mmm+1;mmm=mmm+1;mmm=mmm+1;
 
-hNextFrame = uicontrol('Style','pushbutton',...
+% hNextFrame
+uicontrol('Style','pushbutton',...
     'String','NextFrame [f]',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@nextbutton_callback);
-hPreviousFrame = uicontrol('Style','pushbutton',...
+% hPreviousFrame
+uicontrol('Style','pushbutton',...
     'String','Previous frame [a]',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@prevbutton_callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
+        mmm=mmm+1;mmm=mmm+1;
         
-hGoToFrame = uicontrol('Style','pushbutton',...
+% hGoToFrame
+uicontrol('Style','pushbutton',...
     'String','Go to Frame',...
     'Position',[xpositions(mmm)-120,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@gotobutton_callback);
 
         
-hFinalFrame = uicontrol('Style','pushbutton',...
+% hFinalFrame
+uicontrol('Style','pushbutton',...
     'String','FinalFrame [g]',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@finalbutton_callback);
-hFirstFrame = uicontrol('Style','pushbutton',...
+% hFirstFrame
+uicontrol('Style','pushbutton',...
     'String','First frame [z]',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@firstbutton_callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
+% hFirstFrame
+uicontrol('Style','pushbutton',...
+    'String','saveSomethingCallback',...
+    'Position',[xpositions(mmm)-300,ypositions(mmm),buttonwidth,buttonheight],...
+    'Callback',@saveSomethingCallback);
+        mmm=mmm+1; mmm=mmm+1;
 
-htextone = uicontrol('Style','text','String','Choose Scene',...
+% htextone
+uicontrol('Style','text','String','Choose Scene',...
     'Position',[xpositions(mmm),ypositions(mmm)-buttonheight./2,buttonwidth,buttonheight]);
+
+% htextone
+uicontrol('Style','text','String','Choose Channel',...
+    'Position',[xpositions(mmm)-200,ypositions(mmm)-buttonheight./2,buttonwidth,buttonheight]);
         mmm=mmm+1;
-hpopup = uicontrol('Style','popupmenu',...
+% hpopup
+uicontrol('Style','popupmenu',...
     'String',SceneList',...
     'Position',[xpositions(mmm)-buttonwidth./2,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
     'Callback',@popup_menu_Callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
-hAddArea = uicontrol('Style','pushbutton','String','AddArea [v]',...
+        
+        
+% hpopup
+uicontrol('Style','popupmenu',...
+    'String',channelList',...
+    'Position',[xpositions(mmm)-200-buttonwidth./2,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
+    'Callback',@popup_menu_Callback_channels);
+        mmm=mmm+1;mmm=mmm+1; mmm=mmm+1;
+        
+        
+% hAddArea
+uicontrol('Style','pushbutton','String','AddArea [v]',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@addareabutton_Callback);
-hLinkCells = uicontrol('Style','pushbutton','String','LinkCells [r]',...
+% hLinkCells
+uicontrol('Style','pushbutton','String','LinkCells [r]',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@linkCells_Callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
-hDelete = uicontrol('Style','pushbutton','String','Delete [d]',...
+        mmm=mmm+1;mmm=mmm+1;
+% hDelete
+uicontrol('Style','pushbutton','String','Delete [d]',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@deletebutton_Callback);
-hEliminate = uicontrol('Style','pushbutton','String','Eliminate [e]',...
+% hEliminate
+uicontrol('Style','pushbutton','String','Eliminate [e]',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@eliminatebutton_Callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
+        mmm=mmm+1;mmm=mmm+1;
         
         
-hDestroy = uicontrol('Style','pushbutton','String','Destroy',...
+%hDestroy
+uicontrol('Style','pushbutton','String','Destroy',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@destroybutton_Callback);
-hchosenOnes = uicontrol('Style','pushbutton','String','Chosen Ones',...
+
+%hchosenOnes 
+uicontrol('Style','pushbutton','String','Chosen Ones',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@chosenOnes_Callback);
-       mmm=mmm+1;
-       mmm=mmm+1;
+       mmm=mmm+1;mmm=mmm+1;
        
-hRemoveArea = uicontrol('Style', 'pushbutton', 'String', 'Remove area',...
+% hRemoveArea
+uicontrol('Style', 'pushbutton', 'String', 'Remove area',...
     'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight/1.5],...
     'Callback',@removeArea_Callback);
         mmm= mmm+1;
-hchosenOnesEnd = uicontrol('Style','pushbutton','String','Chosen Ones EndOnly',...
+% hchosenOnesEnd 
+uicontrol('Style','pushbutton','String','Chosen Ones EndOnly',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
     'Callback',@chosenOnesEnd_Callback);
        mmm=mmm+1;
 
         
-hErode = uicontrol('Style','pushbutton','String','Erode Chosen Only',...
+% hErode
+uicontrol('Style','pushbutton','String','Erode Chosen Only',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
     'Callback',@erodeOnes_Callback);
        mmm=mmm+1;
 
 
-hDilate = uicontrol('Style','pushbutton','String','Dilate Chosen Only',...
+% hDilate
+uicontrol('Style','pushbutton','String','Dilate Chosen Only',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
     'Callback',@dilateOnes_Callback);
-       mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
+       mmm=mmm+1; mmm=mmm+1;mmm=mmm+1;
 
         
-        
-hDisplayTracking = uicontrol('Style','pushbutton',...
+% hDisplayTracking
+uicontrol('Style','pushbutton',...
     'String','DisplayTracking [m]',...
     'Position',[xpositions(mmm)-(buttonwidth./2),ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@displayTrackingButton_Callback);
-hTrack = uicontrol('Style','pushbutton',...
+% hTrack
+uicontrol('Style','pushbutton',...
     'String','Run Tracking [t]',...
     'Position',[xpositions(mmm)+(buttonwidth./2),ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@trackbutton_Callback);
+        mmm=mmm+1; mmm=mmm+1;
         mmm=mmm+1;
-        mmm=mmm+1;
-%         mmm=mmm+1;
-        mmm=mmm+1;
- hContrast = uicontrol('Style','pushbutton',...
+
+%  hContrast
+uicontrol('Style','pushbutton',...
     'String','contrast user',...
     'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@contrast_Callback);       
-        
-        mmm=mmm+1;
-        mmm=mmm+1;      
+        mmm=mmm+1; mmm=mmm+1;      
         
         
         %%%%
         %%%%
-hSaveTrackingAs = uicontrol('Style','pushbutton',...
+% hSaveTrackingAs
+uicontrol('Style','pushbutton',...
     'String','SaveTrackingAs',...
     'Position',[xpositions(mmm)-buttonwidth./2,ypositions(mmm)-buttonheight,buttonwidth.*2,buttonheight.*2],...
     'Callback',@saveTrackingFileAs_callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
-hLoadTracking = uicontrol('Style','pushbutton',...
+        mmm=mmm+1; mmm=mmm+1; mmm=mmm+1; mmm=mmm+1; mmm=mmm+1;
+
+% hLoadTracking
+uicontrol('Style','pushbutton',...
     'String','LoadTracking',...
     'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@loadTrackingFile_callback);
-        mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
+        mmm=mmm+1; mmm=mmm+1; mmm=mmm+1;
+
         
-hPlot = uicontrol('Style','pushbutton',...
+% hPlot
+uicontrol('Style','pushbutton',...
     'String','PLOT!',...
     'Position',[xpositions(mmm)-0,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@Plot_callback);
 
-hPlotCFPnorm = uicontrol('Style','pushbutton',...
+% hPlotCFPnorm
+uicontrol('Style','pushbutton',...
     'String','plotCFPnorm?',...
     'Position',[xpositions(mmm)-90,ypositions(mmm)+20,buttonwidth,buttonheight./2],...
     'Callback',@PlotCFPnorm_callback);
 
-hPlotCFPnotnorm = uicontrol('Style','pushbutton',...
+% hPlotCFPnotnorm 
+uicontrol('Style','pushbutton',...
     'String','plotCFPnotnorm?',...
     'Position',[xpositions(mmm)-90,ypositions(mmm),buttonwidth,buttonheight./2],...
     'Callback',@PlotCFPnotnorm_callback);
 
 
-hPlotSpecificCell = uicontrol('Style','pushbutton',...
+% hPlotSpecificCell
+uicontrol('Style','pushbutton',...
     'String','Plot Specific Cell!',...
     'Position',[xpositions(mmm)+80,ypositions(mmm)+buttonheight./2,buttonwidth,buttonheight./2],...
     'Callback',@Plot_SpecificCell_callback);
-hPlotSettings = uicontrol('Style','pushbutton',...
+% hPlotSettings 
+uicontrol('Style','pushbutton',...
     'String','Plot Settings!',...
     'Position',[xpositions(mmm)+80,ypositions(mmm),buttonwidth,buttonheight./2],...
     'Callback',@PlotSettings_callback);
-      mmm=mmm+1;                      
-      mmm=mmm+1;  
+      mmm=mmm+1;  mmm=mmm+1;
       
-hExportCells = uicontrol('Style','pushbutton',...
+% hExportCells
+uicontrol('Style','pushbutton',...
     'String','Export Cells',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
     'Callback',@exportCells);
         mmm=mmm+1; 
         
-hLabelCells = uicontrol('Style','pushbutton',...
+% hLabelCells
+uicontrol('Style','pushbutton',...
     'String','Label Cells',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
     'Callback',@labelCells);
         mmm=mmm+1; 
-%         mmm=mmm+1; 
         
         
-hcomment = uicontrol('Style','pushbutton','String','Comments',...
+% hcomment
+uicontrol('Style','pushbutton','String','Comments',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
     'Callback',@comment_Callback);
-       mmm=mmm+1;
-        mmm=mmm+1;
-        mmm=mmm+1;
+       mmm=mmm+1; mmm=mmm+1; mmm=mmm+1;
         
-hExportLabelsCells = uicontrol('Style','pushbutton',...
+% hExportLabelsCells
+uicontrol('Style','pushbutton',...
     'String','ExportLabels',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@ exportLabels);
 %     'Callback',@ exportFrames);
-        mmm=mmm+1; 
         
        
-sldc1 = uicontrol('Style', 'slider',...
-        'String','channel1',...
-        'Min',0,'Max',255,'Value',200,...
-        'Position', [xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight./2],...
-        'Callback', @PMthreshslider); i=i+2;
+
         
        
 f.Visible = 'on'   ;
@@ -318,41 +333,1312 @@ for i = 1:length(f.Children)
    hhh = f.Children(i);
    hhh.Units = 'normalized';
 end
+% 
+% MainAxes = axes;
+% MainAxes.Units = 'pixels';
+% MainAxes.XTick=[];
+% MainAxes.YTick = [];
+% imgdim = 512.*1.8;
+% Position = [25 25 imgdim imgdim];
+% % Position = [0.1 0.3 0.65 0.65];
+% MainAxes.Position = Position;
 
-MainAxes = axes;
-MainAxes.Units = 'pixels';
-MainAxes.XTick=[];
-MainAxes.YTick = [];
-imgdim = 512.*1.8;
-Position = [25 25 imgdim imgdim];
-% Position = [0.1 0.3 0.65 0.65];
-MainAxes.Position = Position;
 
+channelimglength = 9;
+xinit = 0.02;
+yinit = 0.025;
+w = 0.15;
+h = 0.15;
+xspacefactor = 0.3;
+yspacefactor = 1;
+x = [xinit xinit+w+(xspacefactor*w) xinit+(w+(xspacefactor*w)).*2 xinit xinit+w+(xspacefactor*w) xinit+(w+(xspacefactor*w)).*2 xinit xinit+w+(xspacefactor*w) xinit+(w+(xspacefactor*w)).*2];
+y = fliplr([yinit yinit yinit yinit+h+(yspacefactor*w) yinit+h+(yspacefactor*w) yinit+h+(yspacefactor*w)   yinit+(w+(yspacefactor*w)).*2 yinit+(w+(yspacefactor*w)).*2 yinit+(w+(yspacefactor*w)).*2]);
 
-PlotAxes = axes;
-% Position = [0.1 0.05 0.15 0.15];
-Position = [0.6440    0.6605    0.1500    0.1500];
-% Position = [822.7440 465.9920 191.4000 105.6000]
-PlotAxes.Position = Position;
-
-SecondPlotAxes = axes;
-% Position = [0.3 0.05 0.15 0.15];
-Position = [0.6440    0.4605    0.1500    0.1500];
-SecondPlotAxes.Position = Position;
-
-ThirdPlotAxes = axes;
-% Position = [0.5 0.05 0.15 0.15];
-Position = [0.6440    0.2605    0.1500    0.1500];
-ThirdPlotAxes.Position = Position;
-
-set(f,'KeyPressFcn',@keypress);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for i=1:channelimglength
+    ax= axes();
+    ax.Position = [x(i) y(i) w h];
+    ax.Units = 'inches';
+    pos = ax.Position;
+    pos(4) = pos(3);
+    ax.Position = pos;
+    ax.Units = 'normalized';
+    ax.XTick = [];
+    ax.YTick = [];
+    subaxes(i) = ax;
 end
 
 
-%% uifunctions
+
+
+
+%parameter structure
+pStruct = struct();
+parameterDefaults = [106 106 40;...
+                    0.5 0.5 1.3;...
+                    20 20 5;...
+                    1 1 1];
+                    
+parameterStrings = {'nucDiameter','threshFactor','sigmaScaledToParticle','noparametercurrently'};
+
+for p = 1:length(parameterStrings)
+    pString = char(parameterStrings{p});
+    for c = 1:length(channelList)
+        cString = char(channelList{c});
+        pStruct.(cString).(pString) = parameterDefaults(p,c); 
+    end
+end
+% str = 'nucDiameter';
+% channel = 'mKate';
+% val.(channel).(str) = 60;
+% pStruct.EGFP.(str)=val.(str);
+% pStruct.mKate.(str)=val.(str);
+% pStruct.CFP.(str)=val.(str);
+% 
+% 
+% str = 'threshFactor';
+% pStruct.EGFP.(str)=val.(str);
+% pStruct.mKate.(str)=val.(str);
+% pStruct.CFP.(str)=val.(str);
+% 
+% str = 'sigmaScaledToParticle'; 
+% pStruct.EGFP.(str)=val.(str);
+% pStruct.mKate.(str)=val.(str);
+% pStruct.CFP.(str)=val.(str);
+% 
+% str = 'noparemtercurrently';
+% pStruct.EGFP.(str)=val.(str);
+% pStruct.mKate.(str)=val.(str);
+% pStruct.CFP.(str)=val.(str);
+% 
+% nucDiameter=122;
+% threshFactor = 0.94;
+% sigmScaledToParticle = 2;
+% noparametercurrently=60;
+
+% ImageDetails.Channel = 'EGFP';
+
+set(f,'KeyPressFcn',@keypress);
+
+end
+
+
+
+
+
+
+
+
+function updateSliders
+global pStruct ImageDetails sliderOne sliderOneText
+
+%slider1
+sliderx = 0.72;
+% slidery = 0.6;
+sliderw = 0.1;
+sliderh = 0.05;
+slidertextw = 0.05;
+sliderspace = 0.1;
+
+
+
+
+
+channel = ImageDetails.Channel;
+
+%nucDiameter
+str = 'nucDiameter';
+val.(str) = pStruct.(channel).(str);
+slidery = 0.55;
+minz = 1;
+maxz = 400;
+sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
+        'Callback', @sliderOneAdjust); 
+    sliderOne.(str).Units='normalized';
+    sliderOne.(str).Position = [sliderx slidery sliderw sliderh];
+sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1 1 1 1],'String',strcat(str,'=',num2str(uint8(val.(str)))));
+    sliderOneTxt.(str).Units= 'Normalized';
+    sliderOneTxt.(str).Position = [sliderx-sliderspace slidery slidertextw sliderh];  
+
+    
+    
+    
+% threshFactor
+str = 'threshFactor';
+val.(str) = pStruct.(channel).(str);
+slidery = 0.5;
+minz = 0.5;
+maxz = 3;
+sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(10*(maxz-minz)),'Value',val.(str),'Position', [1 1 1 1],...
+        'Callback', @sliderOneAdjust); 
+    sliderOne.(str).Units='normalized';
+    sliderOne.(str).Position = [sliderx slidery sliderw sliderh];
+sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1 1 1 1],'String',strcat(str,'=',num2str((val.(str)))));
+    sliderOneTxt.(str).Units= 'Normalized';
+    sliderOneTxt.(str).Position = [sliderx-sliderspace slidery slidertextw sliderh];  
+
+    
+   
+    
+    
+% sigmaScaledToParticle (the divide diameter by this factor to get sigma for
+% gaussian smoothing)
+str = 'sigmaScaledToParticle';
+val.(str) = pStruct.(channel).(str);
+slidery = 0.45;
+minz = 1;
+maxz = 40;
+sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
+        'Callback', @sliderOneAdjust); 
+    sliderOne.(str).Units='normalized';
+    sliderOne.(str).Position = [sliderx slidery sliderw sliderh];
+sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1 1 1 1],'String',strcat(str,'=',num2str(uint8(val.(str)))));
+    sliderOneTxt.(str).Units= 'Normalized';
+    sliderOneTxt.(str).Position = [sliderx-sliderspace slidery slidertextw sliderh];   
+  
+    
+    
+% noparemtercurrently
+str = 'noparametercurrently';
+val.(str) = pStruct.(channel).(str);
+slidery = 0.40;
+minz = 1;
+maxz = 400;
+sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
+        'Callback', @sliderOneAdjust); 
+    sliderOne.(str).Units='normalized';
+    sliderOne.(str).Position = [sliderx slidery sliderw sliderh];
+sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1 1 1 1],'String',strcat(str,'=',num2str(uint8(val.(str)))));
+    sliderOneTxt.(str).Units= 'Normalized';
+    sliderOneTxt.(str).Position = [sliderx-sliderspace slidery slidertextw sliderh];   
+
+end
+
+
+
+function channelinputs =channelregexpmaker(channelstoinput)
+    channelinputs = '(';
+    for i=1:length(channelstoinput) % creates a string of from '(c1|c2|c3|c4)' for regexp functions
+        if i ==1
+        channelinputs = strcat(channelinputs,channelstoinput{i});
+        elseif i < length(channelstoinput)
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i});
+        else
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
+        end
+    end
+end
+
+
+
+
+
+
+function sliderOneAdjust(source,~)
+    global pStruct  ImageDetails sliderOneTxt
+    channel = ImageDetails.Channel;
+    str = source.String;
+%     threshinput.(str) =source.Value;
+%     zerostrel = round(source.Value);
+
+    if strcmpi(str,'threshFactor')
+        valupdate = source.Value;  
+    else
+        valupdate = round(source.Value);
+    end
+    source.Value = valupdate;
+    pStruct.(channel).(str) = valupdate; 
+    disp(valupdate)
+   source.Visible = 'off';
+   sliderOneTxt.(str).String = 'waiting...';
+   pause(0.001);
+    setSceneAndTime
+    disp('done')
+    source.Visible = 'on';
+    
+    sliderOneTxt.(str).String = strcat(str,'=',num2str(pStruct.(channel).(str)));
+    
+end
+
+
+
+
+
+
+
+
+
+function FinalImage=loadStack(FileTif)
+% [a,b] = uigetfile;
+% FileTif = a;
+% cd (b)
+InfoImage=imfinfo(FileTif);
+mImage=InfoImage(1).Width;
+nImage=InfoImage(1).Height;
+NumberImages=length(InfoImage);
+FinalImage=zeros(nImage,mImage,NumberImages,'uint16');
+ 
+TifLink = Tiff(FileTif, 'r');
+for i=1:NumberImages
+   TifLink.setDirectory(i);
+   FinalImage(:,:,i)=TifLink.read();
+end
+TifLink.close();
+end
+
+
+
+
+function IfFinal = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel)
+global  pStruct 
+cd(subdirname)
+
+foldername = '_mKate_flat';
+tsn = determineTimeFrame(foldername);
+
+% channel ='mKate';
+% parameters
+nucDiameter = pStruct.(channel).nucDiameter;
+threshFactor = pStruct.(channel).threshFactor;
+sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+finalerode=2;
+
+
+
+% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
+
+%start
+for frames = 1:size(FinalImage,3)
+%Smooth Image using Anisotropic Diffusion
+% Options.Scheme :  The numerical diffusion scheme used
+%                     'R', Rotation Invariant, Standard Discretization 
+%                          (implicit) 5x5 kernel (Default)
+%                     'O', Optimized Derivative Kernels
+%                     'I', Implicit Discretization (only works in 2D)
+%                     'S', Standard Discretization
+%                     'N', Non-negativity Discretization
+%   Options.T  :      The total diffusion time (default 5)
+%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
+%                     defaults to 1, in case of scheme S or N defaults to
+%                     0.15. 
+%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
+%                     image Hessian, default 1.                   
+%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
+%                     Hessian, default 1.
+%   Options.verbose : Show information about the filtering, values :
+%                     'none', 'iter' (default) , 'full'
+%   Options.eigenmode : There are many different equations to make an diffusion tensor,
+%						this value (only 3D) selects one.
+%					    0 (default) : Weickerts equation, line like kernel
+%						1 : Weickerts equation, plane like kernel
+%						2 : Edge enhancing diffusion (EED)
+%						3 : Coherence-enhancing diffusion (CED)
+%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+    img = FinalImage(:,:,frames); 
+    imgRaw = img;
+        Options.T = 5;
+        Options.dt = 1;
+        Options.Scheme = 'R';
+        Options.rho = 5;
+        Options.sigma = 5;
+        Options.verbose = 'none';
+%     imgRawDenoised = CoherenceFilter(imgRaw, Options);
+imgRawDenoised = imgRaw;
+
+    
+    %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
+    %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
+    %nuclei -- diameter of nuclei is about 50 to 60))
+    kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+    sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+
+
+    %determine the threshold by looking for minima in log-scaled histogram
+    %of pixels from rawMinusLPScaled
+    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:prctile(vec,99));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.1*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Ih = ~subzero;
+
+%     Ihd = imdilate(Ih,strel('disk',1));
+%     Ihdc = imclose(Ihd,strel('disk',2));
+%     Ihdcf = imfill(Ihdc,'holes');
+%     Im = Ihdcf;
+    Ihc = imclose(Ih,strel('disk',4));
+    Ihcf = imfill(Ihc,'holes');
+    Im=Ihcf;
+
+
+
+    %%%%% this is the ultimate addition for watershed segmentation!!!
+    see = strel('disk',1);
+    seo = strel('disk',8);
+    Isum = Im;
+    Ier = Isum;
+%     figure(2)
+    for i=1:(nucDiameter/2)
+        Ier = imerode(Ier,see);
+%                 subplot(1,2,1);
+%                 imagesc(Ier)
+%         Iero = imopen(Ier,seo);
+    %     Isum = Isum+(Iero.*i);
+        Isum = Isum+Ier;
+%                 subplot(1,2,2);
+%                 imagesc(Isum)
+%                 drawnow
+%                 pause(0.1)
+%         Ier=Iero;
+%  disp(max(max(Isum)))
+    end
+    Isum(Isum>nucDiameter) = nucDiameter;
+
+    gausshed = gaussianBlurz(Isum,ceil(sigma./4),ceil(kernelgsize./1));
+    imgt = -double(gausshed);
+    waterBoundary = imerode(Im,strel('disk',1));
+    imgt(~(waterBoundary>0)) = -Inf;
+    L=watershed(imgt);
+
+    L(waterBoundary<1) = 0;
+    If = L>1;
+%     If = imerode(If,strel('disk',finalerode));
+
+
+    
+    time = tsn{frames};
+    tim = time(2:end);
+    IfFinal(:,:,frames)=If;
+end
+
+
+stophere=1;
+end
+
+function IfFinal = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel)
+global  pStruct 
+cd(subdirname)
+
+foldername = '_mKate_flat';
+tsn = determineTimeFrame(foldername);
+
+% parameters
+nucDiameter = pStruct.(channel).nucDiameter;
+threshFactor = pStruct.(channel).threshFactor;
+sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+
+finalerode=2;
+
+
+
+% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
+
+%start
+for frames = 1:size(FinalImage,3)
+%Smooth Image using Anisotropic Diffusion
+% Options.Scheme :  The numerical diffusion scheme used
+%                     'R', Rotation Invariant, Standard Discretization 
+%                          (implicit) 5x5 kernel (Default)
+%                     'O', Optimized Derivative Kernels
+%                     'I', Implicit Discretization (only works in 2D)
+%                     'S', Standard Discretization
+%                     'N', Non-negativity Discretization
+%   Options.T  :      The total diffusion time (default 5)
+%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
+%                     defaults to 1, in case of scheme S or N defaults to
+%                     0.15. 
+%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
+%                     image Hessian, default 1.                   
+%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
+%                     Hessian, default 1.
+%   Options.verbose : Show information about the filtering, values :
+%                     'none', 'iter' (default) , 'full'
+%   Options.eigenmode : There are many different equations to make an diffusion tensor,
+%						this value (only 3D) selects one.
+%					    0 (default) : Weickerts equation, line like kernel
+%						1 : Weickerts equation, plane like kernel
+%						2 : Edge enhancing diffusion (EED)
+%						3 : Coherence-enhancing diffusion (CED)
+%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+    img = FinalImage(:,:,frames); 
+    imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
+
+    imgW = wiener2(img,[1 20]);
+    imgWW = wiener2(imgW,[20 1]);
+    imgWWW = wiener2(imgWW,[5 5]);
+    imgRawDenoised = imgWWW;
+    denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+    highpoints = prctile(denoiseVec,95);
+    imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
+    
+%         Options.T = 5;
+%         Options.dt = 1;
+%         Options.Scheme = 'R';
+%         Options.rho = 20;
+%         Options.sigma = 20;
+%         Options.verbose = 'none';ii
+% %     imgRawDenoised = CoherenceFilter(imgRaw, Options);
+% % imgRawDenoised = imgRaw;
+
+    
+    %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
+    %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
+    %nuclei -- diameter of nuclei is about 50 to 60))
+    
+    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+
+
+    %determine the threshold by looking for minima in log-scaled histogram
+    %of pixels from rawMinusLPScaled
+    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.4*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown-1);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Ih = ~subzero;
+
+%     Ihd = imdilate(Ih,strel('disk',1));
+%     Ihdc = imclose(Ihd,strel('disk',2));
+%     Ihdcf = imfill(Ihdc,'holes');
+%     Im = Ihdcf;
+    Ihc = imclose(Ih,strel('disk',20));
+    Ihcf = imfill(Ihc,'holes');
+%     Ihcf = Ihc;
+    Ihcfd = imdilate(Ihcf,strel('disk',20));
+%     Ihcfd = Ihcf;
+    Im=Ihcfd;
+    If =Im;
+
+
+
+
+
+    
+    time = tsn{frames};
+    tim = time(2:end);
+    IfFinal(:,:,frames)=If;
+end
+
+
+stophere=1;
+end
+
+
+function IfFinal = segmentationNucleusRambling(FinalImage,subdirname,scenename,filename,channel)
+global  pStruct
+cd(subdirname)
+
+dirlist = dir('_mKate_flat');
+foldername = '_mKate_flat';
+tsn = determineTimeFrame(foldername);
+
+channel ='mKate';
+% parameters
+
+nucDiameter = pStruct.mKate.nucDiameter;
+threshFactor = pStruct.mKate.threshFactor;
+sigmaScaledToParticle = pStruct.mKate.sigmaScaledToParticle;
+noparemtercurrently = pStruct.mKate.noparemtercurrently;
+
+finalerode=2;
+
+
+
+
+%start
+for frames = 1:size(FinalImage,3)
+    img = FinalImage(:,:,frames); 
+    imgorig = img;
+
+     %find circles works quite well
+%     figure(1029)
+%     imagesc(imgorig);
+%     [centers, radii] = imfindcircles(imgorig,[20 50],'ObjectPolarity','bright');
+%     h=viscircles(centers,radii);
+%     stophere=1;
+
+
+% Options.Scheme :  The numerical diffusion scheme used
+%                     'R', Rotation Invariant, Standard Discretization 
+%                          (implicit) 5x5 kernel (Default)
+%                     'O', Optimized Derivative Kernels
+%                     'I', Implicit Discretization (only works in 2D)
+%                     'S', Standard Discretization
+%                     'N', Non-negativity Discretization
+%   Options.T  :      The total diffusion time (default 5)
+%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
+%                     defaults to 1, in case of scheme S or N defaults to
+%                     0.15. 
+%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
+%                     image Hessian, default 1.                   
+%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
+%                     Hessian, default 1.
+%   Options.verbose : Show information about the filtering, values :
+%                     'none', 'iter' (default) , 'full'
+%   Options.eigenmode : There are many different equations to make an diffusion tensor,
+%						this value (only 3D) selects one.
+%					    0 (default) : Weickerts equation, line like kernel
+%						1 : Weickerts equation, plane like kernel
+%						2 : Edge enhancing diffusion (EED)
+%						3 : Coherence-enhancing diffusion (CED)
+%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+    figure(22)
+    subplot(1,4,1);
+    imagesc(imgorig);
+
+    Options.T = 5;
+    Options.dt = 1;
+    Options.Scheme = 'R';
+    Options.rho = 5;
+    Options.sigma = 5;
+    Options.verbose = 'none';
+    imgdiff = CoherenceFilter(imgorig, Options);
+    subplot(1,4,2);
+    imagesc(imgdiff);
+       
+    %diameter of nuclei is about 50 to 60
+    kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+    sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+    imgLowPass = gaussianBlurz(double(imgdiff),sigma,kernelgsize);
+
+    subplot(1,4,3);
+    imagesc(imgLowPass)
+
+    sub = double(imgdiff) -double(imgLowPass);%%%%%%% key step!
+    subvec = reshape(sub,size(sub,1)^2,1);
+    bb = prctile(subvec,0.01);
+    b = find(sub < bb);
+    imgLowPassMinusOrigDiff = imgdiff(b)./imgLowPass(b);
+    gausscaled = imgLowPass.*nanmedian(imgLowPassMinusOrigDiff);
+    sub_scale_corr = double(imgdiff) - double(gausscaled);
+    
+    subplot(1,4,4);
+    imagesc(sub_scale_corr);
+
+
+    subtractionref = imadjust(uint16(sub_scale_corr));
+    vecOG = double(reshape(subtractionref,size(subtractionref,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:prctile(vec,99));
+
+
+    numberstwo = numbers;
+    numbersnorm = numberstwo./sum(numbers);
+    numbers = medfilt1(numberstwo, 10); %smooths curve
+    numbers = medfilt1(numbers, 100); %smooths curve
+    fraction = numbers./sum(numbers);
+    hold off
+    plot(numbersnorm)
+    hold on
+    plot(fraction)
+    
+
+    mf = max(fraction);
+
+    %%%%%%%%%%%%%%%%%%%%
+    left=0.5*mf;
+    slopedown=0.1*mf;
+    %%%%%%%%%%%%%%%%%%%%%
+
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    insideslopeup = find(fraction(leftedge+insideslopedown:end) >0.0012,1,'first');
+    trough = min(fraction(leftedge+insideslopedown:leftedge+insideslopedown+insideslopeup));
+    troughindex = find(fraction(leftedge+insideslopedown:leftedge+insideslopedown+insideslopeup) == trough);
+
+
+    threshlocation = bincenters(leftedge+insideslopedown);
+
+    figure(242)
+        bar(bincenters,fraction);hold on
+        xlim([prctile(vec,1) prctile(vec,99)])
+        ylim([0 mf.*2])
+    stem ([threshlocation threshlocation],[0 1]);hold off
+    drawnow
+
+    subtractionthreshold = threshlocation;
+
+    if size(subtractionthreshold,1)==size(subtractionthreshold,2)
+        else
+         subtractionthreshold = mean(threshlocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionthreshold).*threshFactor;
+    subtracted = double(subtractionref)-subtractionThresholdScaled;
+%     subtracted = double(subtractionref)-subtractionthreshold;
+    subzero = (subtracted<0);
+    subtractedzero = subtracted.*(~subzero);
+
+
+    Ie = subtractedzero;
+    Ie(Ie>0) = 1;
+
+    Ih = logical(Ie);
+    Ihd = imdilate(Ih,strel('disk',1));
+    Ihdc = imclose(Ihd,strel('disk',2));
+    Ihdcf = imfill(Ihdc,'holes');
+    Im = Ihdcf;
+%     Im=Ih;
+
+
+
+    %%%%% this is the ultimate addition for watershed segmentation!!!
+    see = strel('disk',1);
+    seo = strel('disk',8);
+    Isum = Im;
+    Ier = Isum;
+%     figure(2)
+    for i=1:(nucDiameter./1.5)
+        Ier = imerode(Ier,see);
+%                 subplot(1,2,1);
+%                 imagesc(Ier)
+%         Iero = imopen(Ier,seo);
+    %     Isum = Isum+(Iero.*i);
+        Isum = Isum+Ier;
+%                 subplot(1,2,2);
+%                 imagesc(Isum)
+%                 drawnow
+%                 pause(0.1)
+%         Ier=Iero;
+%  disp(max(max(Isum)))
+    end
+    Isum(Isum>nucDiameter) = nucDiameter;
+
+    gausshed = gaussianBlurz(Isum,sigma./4,kernelgsize./4);
+    imgt = -double(gausshed);
+    waterBoundary = imerode(Im,strel('disk',1));
+    imgt(~(waterBoundary>0)) = -Inf;
+    L=watershed(imgt);
+
+    L(waterBoundary<1) = 0;
+    If = L>1;
+    If = imerode(If,strel('disk',finalerode));
+
+
+    
+    
+%  %exclude non-round objects
+%     [B,L] = bwboundaries(If,'noholes');
+%     Cells = bwconncomp(If);
+%     PX = Cells.PixelIdxList;
+%     Ifbefore = If;
+%     
+%     stats = regionprops(L,'Area','Centroid');
+%         threshold = 0.6;
+%         % loop over the boundaries
+%         pxlog = false(length(PX));
+%         for k = 1:length(B)
+%           % obtain (X,Y) boundary coordinates corresponding to label 'k'
+%           boundary = B{k};
+%           % compute a simple estimate of the object's perimeter
+%           delta_sq = diff(boundary).^2;
+%           perimeter = sum(sqrt(sum(delta_sq,2)));
+%           % obtain the area calculation corresponding to label 'k'
+%           area = stats(k).Area;
+%           % compute the roundness metric
+%           metric = 4*pi*area/perimeter^2;
+%           
+%           if metric<threshold
+%               If(PX{k})=0;
+%           end
+%           
+%           % display the results
+% %           metric_string = sprintf('%2.2f',metric);
+%     
+%           % mark objects above the threshold with a black circle
+% %                 figure(232)
+% %           if metric > threshold
+% %             centroid = stats(k).Centroid;
+% %             plot(centroid(1),centroid(2),'ko');hold on
+% %           end
+% % 
+% %           text(boundary(1,2)-35,boundary(1,1)+13,metric_string,'Color','k',...
+% %                'FontSize',14,'FontWeight','bold');
+% 
+%         end
+% % 
+% %         title(['Metrics closer to 1 indicate that ',...
+% %                'the object is approximately round']);
+% 
+      
+% % Ifbefore = If;
+% figure(33)
+% i = imagesc(Ifbefore);
+% ax = i.Parent;
+% ax.YDir = 'normal';
+% 
+% figure(44)
+% i = imagesc(If);
+% ax = i.Parent;
+% ax.YDir = 'normal';
+
+
+    time = tsn{frames};
+    tim = time(2:end);
+%     if frames==10
+%         figure(1)
+%         imagesc(If)
+%         stophere=1;
+%     end
+
+    % savethatimage(scenename,time,If.*255,frames,filename,channel)
+    IfFinal(:,:,frames)=If;
+end
+
+
+stophere=1;
+end
+
+
+function If = segmentationMNG(FinalImage,subdirname,scenename,filename,channel)
+global nucleus_seg
+fig=1;
+mkdir(strcat(channel));
+
+% parameters
+left = 0.004;
+slopedown = 0.003;
+
+dimdiff = 2048./size(FinalImage(:,:,1),1);
+
+zerostrel = 2;
+firststrel = round(30./dimdiff);
+sigmafirst = firststrel.*3;
+kernelgsizefirst = firststrel.*6;
+fracsmoothing = 0.5.*dimdiff;
+
+dirlist = dir(nucleus_seg);
+if isempty(dirlist)
+    dirlist = dir('mKate_flat');
+    foldername = 'mKate_flat';
+else
+    foldername = nucleus_seg;
+end
+
+tsn = determineTimeFrame(foldername);
+
+
+% start
+for frames = 1:size(FinalImage,3)
+img = FinalImage(:,:,frames); 
+imgorig = img;
+
+img = wiener2(img,[5 5]);
+se =strel('disk',zerostrel);
+Ie = imerode(imgorig,se);
+Iobr = imreconstruct(Ie,img);
+Iobrd = imdilate(Iobr,se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd),imcomplement(Iobr));
+IobrcbrF = imcomplement(Iobrcbr);
+gaus = double(IobrcbrF);
+
+se =strel('disk',firststrel);
+Ie = imerode(gaus,se);
+Iobr = imreconstruct(Ie,gaus);
+Iobrd = imdilate(Iobr,se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd),imcomplement(Iobr));
+Iobrcbr = imcomplement(Iobrcbr);
+gaus = double(Iobrcbr);
+
+
+sigma = sigmafirst;
+kernelgsize = kernelgsizefirst;
+gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
+
+sub = double(gaus) -double(gaustwo);%%%%%%% key step!
+b = find(sub == min(min(sub)),1,'first');
+rattio = gaustwo(b)./gaus(b);
+gaustwocorr = gaustwo./rattio;
+sub_scale_corr = double(gaus) - double(gaustwocorr);
+
+
+
+
+subtractionref = sub_scale_corr;
+vec = reshape(subtractionref,size(subtractionref,1)^2,1);
+[numbers,bincenters] = hist(double(vec),0:fracsmoothing:10000);
+
+
+
+numbers = medfilt1(numbers, 10); %smooths curve
+fraction = numbers./sum(numbers);
+
+mf = max(fraction);
+
+%%%%%%%%%%%%%%%%%%%%
+left=0.3*mf;
+slopedown=0.2*mf;
+%%%%%%%%%%%%%%%%%%%%%
+
+leftedge = find(fraction > left,1,'first');
+insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+insideslopeup = find(fraction(leftedge+insideslopedown:end) >0.0012,1,'first');
+trough = min(fraction(leftedge+insideslopedown:leftedge+insideslopedown+insideslopeup));
+troughindex = find(fraction(leftedge+insideslopedown:leftedge+insideslopedown+insideslopeup) == trough);
+troughindexrounded = round(median(troughindex));
+
+
+
+threshlocation = bincenters(leftedge+insideslopedown);
+% 
+% figure(22)
+%     bar(bincenters,fraction);hold on
+%     xlim([-500 1000])
+%     ylim([0 0.1])
+% stem ([threshlocation threshlocation],[0 1]);hold off
+% drawnow
+
+subtractionthreshold = threshlocation;
+
+if size(subtractionthreshold,1)==size(subtractionthreshold,2)
+else
+     subtractionthreshold = mean(threshlocation);
+end
+
+% subtractionthreshold = graythresh(subtractionref);
+
+subtracted = sub_scale_corr-subtractionthreshold;
+subzero = (subtracted<0);
+subtractedzero = subtracted.*(~subzero);
+
+
+Ie = subtractedzero;
+a = find(Ie>0);
+submax = zeros(size(Ie));
+Ie(a)=50;
+
+
+
+
+
+Ih = Ie>0;
+Igclose = imclose(Ih,strel('disk',round(30./dimdiff)));
+Igclosemax = imclose(Ih,strel('disk',round(80./dimdiff)));
+Igcopenmax = imopen(Igclosemax,strel('disk',round(10./dimdiff)));
+Igcopen = imopen(Igclose,strel('disk',2));
+Igcofill = imfill(Igcopen,'holes');
+Igcfopen = bwareaopen(Igcofill,round(5000./(dimdiff.^2)));
+Igcfopendil = imerode(Igcfopen,strel('disk',round(5)));
+
+% finalsigma=20;
+% finalkernelgsize=40;
+gaus = gaussianBlurz(IobrcbrF,round(sigmafirst./dimdiff),(kernelgsizefirst./dimdiff));
+
+% sigma=40;
+% kernelgsize=80;
+% gaus = gaussianBlurz(gaus,sigmafirst.*2,kernelgsizefirst.*2);
+
+imgt = -double(gaus);
+% imgt(~(Igcfopen>0)) = -Inf;
+imgt(~(Igcopenmax>0)) = -Inf;
+
+L=watershed(imgt);
+
+L(Igcfopendil<1) = 0;
+% imagesc(L)
+% colormap parula
+If = L>1;
+
+stophere=1;
+% time = settimecharacter(frames);
+time = tsn{frames};
+tim = time(2:end);
+savethatimage(scenename,time,If.*255,frames,filename,channel)
+end
+
+
+end
+
+function If = segmentationBKGsecond(FinalImage,subdirname,scenename,filename,channel)
+global nucleus_seg
+fig=1;
+mkdir(strcat(channel));
+% parameters
+dimdiff = 2048./size(FinalImage(:,:,1),1);
+
+zerostrel = 2;
+% firststrel = round(30./dimdiff);
+firststrel = round(20./dimdiff);
+sigmafirst = firststrel.*3;
+kernelgsizefirst = firststrel.*6;
+fracsmoothing = 0.5.*dimdiff;
+
+%set the time
+dirlist = dir(nucleus_seg);
+if isempty(dirlist)
+    dirlist = dir('mKate_flat');
+    foldername = 'mKate_flat';
+else
+    foldername = nucleus_seg;
+end
+
+tsn = determineTimeFrame(foldername);
+
+% start
+for frames = 1:size(FinalImage,3)
+img = FinalImage(:,:,frames); 
+imgorig = img;
+
+img = wiener2(img,[5 5]);
+se =strel('disk',zerostrel);
+Ie = imerode(imgorig,se);
+Iobr = imreconstruct(Ie,img);
+Iobrd = imdilate(Iobr,se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd),imcomplement(Iobr));
+IobrcbrF = imcomplement(Iobrcbr);
+gaus = double(IobrcbrF);
+
+se =strel('disk',firststrel);
+Ie = imerode(gaus,se);
+Iobr = imreconstruct(Ie,gaus);
+Iobrd = imdilate(Iobr,se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd),imcomplement(Iobr));
+Iobrcbr = imcomplement(Iobrcbr);
+gaus = double(Iobrcbr);
+
+
+sigma = sigmafirst;
+kernelgsize = kernelgsizefirst;
+gaustwo = gaussianBlurz(double(gaus),sigma,kernelgsize);
+
+sub = double(gaus) -double(gaustwo);%%%%%%% key step!
+b = find(sub == min(min(sub)),1,'first');
+rattio = gaustwo(b)./gaus(b);
+gaustwocorr = gaustwo./rattio;
+sub_scale_corr = double(gaus) - double(gaustwocorr);
+
+
+
+
+subtractionref = sub_scale_corr;
+vec = reshape(subtractionref,size(subtractionref,1)^2,1);
+[numbers,bincenters] = hist(double(vec),0:fracsmoothing/10:10000);
+numbers = medfilt1(numbers, 10); %smooths curve
+fraction = numbers./sum(numbers);
+
+mf = max(fraction);
+%%%%%%%%%%%%%%%%%%%%
+left=0.5*mf;
+slopedown=0.4*mf;
+%%%%%%%%%%%%%%%%%%%%%
+
+leftedge = find(fraction > left,1,'first');
+insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+threshlocation = bincenters(leftedge+insideslopedown);
+
+% figure(22)
+%     bar(bincenters,fraction./mf);hold on
+%     xlim([-500 1000])
+%     ylim([0 0.8])
+% stem ([threshlocation threshlocation],[0 10],'g');hold off
+% drawnow
+
+subtractionthreshold = threshlocation;
+
+if size(subtractionthreshold,1)==size(subtractionthreshold,2)
+else
+     subtractionthreshold = mean(threshlocation);
+end
+
+% subtractionthreshold = graythresh(subtractionref);
+
+subtracted = sub_scale_corr-subtractionthreshold;
+subzero = (subtracted<0);
+subtractedzero = subtracted.*(~subzero);
+
+
+Ie = subtractedzero;
+a = find(Ie>0);
+submax = zeros(size(Ie));
+Ie(a)=50;
+
+
+
+
+
+Ih = Ie>0;
+Igclose = imclose(Ih,strel('disk',round(30./dimdiff)));
+Igclosemax = imclose(Ih,strel('disk',round(80./dimdiff)));
+Igcopenmax = imopen(Igclosemax,strel('disk',round(10./dimdiff)));
+Igcopen = imopen(Igclose,strel('disk',2));
+Igcofill = imfill(Igcopen,'holes');
+Igcfopen = bwareaopen(Igcofill,round(5000./(dimdiff.^2)));
+Igcfopendil = imerode(Igcfopen,strel('disk',round(5)));
+
+% finalsigma=20;
+% finalkernelgsize=40;
+% gaus = gaussianBlurz(IobrcbrF,round(sigmafirst./dimdiff),(kernelgsizefirst./dimdiff));
+% 
+% % sigma=40;
+% % kernelgsize=80;
+% % gaus = gaussianBlurz(gaus,sigmafirst.*2,kernelgsizefirst.*2);
+% 
+% imgt = -double(gaus);
+% % % imgt(~(Igcfopen>0)) = -Inf;
+% % imgt(~(Igcopenmax>0)) = -Inf;
+% imgt(~(Igcopenmax>0)) = 0;
+% 
+% % L=watershed(imgt);
+% L=imgt;
+L = Igcopenmax;
+
+% L(Igcfopendil<1) = 0;
+% imagesc(L)
+% colormap parula
+If = L>0;
+% se = strel('disk',16);
+se = strel('disk',12);
+ifd = imdilate(If,se);
+ifdc = imclose(ifd,se);
+    ifdc(1:512,1)=255;
+    ifdc(1:512,512)=255;
+    ifdc(1,1:512)=255;
+    ifdc(512,1:512)=255;
+    
+
+If = ifdc;
+cd('NucleusBinary_flat')
+time = tsn{frames};
+tim = time(2:end);
+
+
+% time = settimecharacter(frames);
+% tim = time(1:end);
+filelist = dir(strcat('*t',tim,'_*'));
+% if isempty(filelist)
+%     stophere=1;
+%     filelist = dir(strcat('*t',tim(2:end),'_*'));
+% end
+clog = imread(char(filelist.name));
+
+% se = strel('disk',4);
+se = strel('disk',8);
+clogd = imdilate(clog,se);
+If(logical(clogd))=1;
+cd .. 
+
+prim = bwperim(If);
+se = strel('disk',2);
+primd = imdilate(prim,se);
+imgorig(primd) = max(max(imgorig));
+% figure(99),imagesc(imgorig)
+% drawnow
+stophere=1;
+savethatimage(scenename,time,If.*255,frames,filename,channel)
+end
+
+
+end
+
+
+function savethatimage(scenename,time,Ie,frames,filename,channel)
+cd(channel)
+
+[a,b] = regexp(filename,'(_mKate|CFP|EGFP|DIC)');
+fname = strcat(filename(1:a-1),channel,filename(b+1:end));
+fname = filename;
+
+[a,b] = regexp(fname,'_t[0-9]+');
+fname(a:b) = strcat('_',time);
+% % % if isempty(a)
+% % %     [a,b] = regexp(fname,'t[0-9][0-9]');
+% % %     tnum = str2double(fname(a+1:b))-1;
+% % %     tm = round(tnum+str2double(time));
+% % %     time = settimecharacter(tm);
+% % %     if (length(time)>length(fname(a+1:b)))
+% % %     time(1) = 't';
+% % %     else
+% % %     time = horzcat('t',time);
+% % % %     disp(strcat('time',time));
+% % %     end
+% % %     fname(a:b) = time;
+% % % else
+% % %     time = horzcat('t',time);
+% % % %     disp(strcat('2time',time));
+% % %     fname(a:b) = time;
+% % % end
+% if length(time)==length(fname(a+1:b))
+% time = horzcat('t',time);
+% fname(a:b) = time;
+% elseif length(fname(a+1:b))<length(time)
+% time = horzcat('t',time(2:end));
+% fname(a:b) = time;
+% end
+
+imwrite(uint8(Ie),fname,'tiff','WriteMode','overwrite');
+cd .. 
+
+% cd('tiffs')
+% % imwrite(uint8(Ie),strcat(scenename,'_','t',time,'_NucleusBinary_flat.tif'));
+% if ~isempty(dir(strcat(channel(1:2),'*'))) && frames == 1
+% imwrite(uint8(Ie),strcat(channel,'.tif'),'tiff','WriteMode','overwrite');
+% else
+% imwrite(uint8(Ie),strcat(channel,'.tif'),'tiff','WriteMode','append');
+% end
+% cd ..
+
+end
+
+function displaynormalizationfactor(b,c,frames,scenename)
+disp(strcat(num2str(b),'_',num2str(c),'_',num2str(frames),'_',scenename))
+end
+
+function bw = gaussianBlurz(im,sigma,kernelgsize,varargin)
+
+filtersize = [kernelgsize kernelgsize];
+kernelg = fspecial('gaussian',filtersize,sigma);
+
+%% image filtering
+gFrame = imfilter(im,kernelg,'repl');
+
+if ~isempty(varargin)
+    bw=gFrame.*uint16(varargin{1}>0);
+else
+    bw=gFrame;
+end
+end
+
+
+function bw = logMasked(im,ksize,varargin)
+% Discrete Laplacian
+kernel = chooseKernel(ksize);
+%% image filtering
+lapFrame = imfilter(im,kernel,'repl');
+if ~isempty(varargin)
+    bw=lapFrame.*uint16(varargin{1}>0);
+else
+    bw=lapFrame;
+end
+end
+
+
+
+function kernel = chooseKernel(ksize)
+if ksize ==5
+kernel = [-4 -1  0 -1 -4;...
+     -1  2  3  2 -1;...
+      0  3  4  3  0;...
+     -1  2  3  2 -1;...
+     -4 -1  0 -1 -4];
+
+
+% % % -4 -1  0 -1 -4
+% % % -1  2  3  2 -1
+% % % 0  3  4  3  0
+% % % -1  2  3  2 -1
+% % % -4 -1  0 -1 -4
+
+elseif ksize == 7
+kernel =[-10 -5 -2 -1 -2 -5 -10;... 
+    -5  0  3  4  3  0  -5;... 
+    -2  3  6  7  6  3  -2;... 
+    -1  4  7  8  7  4  -1;... 
+    -2  3  6  7  6  3  -2;... 
+    -5  0  3  4  3  0  -5;... 
+    -10 -5 -2 -1 -2 -5 -10];... 
+    
+% % % -10 -5 -2 -1 -2 -5 -10 
+% % % -5  0  3  4  3  0  -5 
+% % % -2  3  6  7  6  3  -2 
+% % % -1  4  7  8  7  4  -1 
+% % % -2  3  6  7  6  3  -2 
+% % % -5  0  3  4  3  0  -5
+% % % -10 -5 -2 -1 -2 -5 -10
+end
+end
+
+
+
+function  LoGstack = LaplacianOfGaussianStack(imgstack,dims,ksize)
+        LoGstack = zeros(dims(1),dims(2),dims(3));
+        for i = 1:size(imgstack,3)
+        LoGstack(:,:,i) = logMasked(imgstack(:,:,i),ksize);
+        end
+        
+end
+
+
+function tsn = determineTimeFrame(foldername)
+cd(foldername)
+fflist = dir(strcat('*.tif'));
+ffnames = {fflist.name};
+[a,b,c,d] = regexp(ffnames,'_t[0-9]+');
+[a,b,c,d] = regexp(ffnames,'_t[0-9]++');
+tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
+[a,b,c,d] = regexp(tnames,'t[0-9]++');%added extra step because sometimes the time frame parsin was mistaken
+tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
+tsn = sort(tnames);
+cd ..
+end
+
+
 
 function PMthreshslider(source,callbackdata)
     global threshinput Imagez
@@ -445,10 +1731,10 @@ switch key
         PlotCFPnotnorm_callback([],[])
     case '0'
         displaycomments=1;
-    xy = getxy([],[]);
-    [~,comments,commentpos,cellidx]=updatecomments(xy);
-    setcommentsTracking(comments,commentpos)
-    dispxy(xy)
+        xy = getxy([],[]);
+        [~,comments,commentpos,cellidx]=updatecomments(xy);
+        setcommentsTracking(comments,commentpos)
+        dispxy(xy)
 end
 
 end
@@ -549,7 +1835,6 @@ cd('flatfield_corrected')
 SceneDirectory = dir (strcat('*',ImageDetails.Scene,'*'));
 cd(SceneDirectory.name)
 SceneDirectoryPath = pwd;
-loadTrackingFile_callback([],[])
 setSceneAndTime
 end
 function prevscenebutton_Callback(~,~) 
@@ -575,11 +1860,26 @@ SceneDirectoryPath = pwd;
 loadTrackingFile_callback([],[])
 setSceneAndTime
 end
-function popup_menu_Callback(source,~) 
-global ImageDetails Tracked timeFrames
 
-Trackedz = makeTrackingFile(timeFrames);
-Tracked=Trackedz;
+
+function popup_menu_Callback_channels(source,~)
+global ImageDetails Tracked 
+
+Tracked=[];
+
+% Determine the selected data set.
+ str = source.String;
+ val = source.Value;
+ channel = char(str{val});
+
+ImageDetails.Channel = channel;
+setSceneAndTime
+end
+
+function popup_menu_Callback(source,~) 
+global ImageDetails Tracked 
+
+Tracked=[];
 
 % Determine the selected data set.
  str = source.String;
@@ -2543,445 +3843,11 @@ CENTROID = struct();
 end
 
 
-%% tracking functions
-function displayTrackingButton_Callback(~,~)
-global    displaytracking 
 
-if displaytracking == 0
-displaytracking = 1;
-else
-displaytracking =0;
-end
-
-setSceneAndTime
-end
-
-function Tracked = makeTrackingFile(timeFrames)
-
-Tracked = cell(1,length(timeFrames));
-Framez = struct();
-Framez.Cellz =[];
-Framez.imgsize=[];
-Framez.filename=[];
-
-
-for i = 1:length(Tracked)
-    Tracked{i} = Framez;
-end
-
-end
-function trackbutton_Callback(~,~)
-global  A AA framesForDir Tracked ImageDetails TC
-pvalue = ImageDetails.Scene;
-
-    trackfilelist = {'yes','no'};
-    [S,~] = listdlg('PromptString','Are you sure you want to run tracking?',...
-                'SelectionMode','single',...
-                'ListSize',[200 300],...
-                'ListString',trackfilelist);
-            
-            if S==1
-Tracked = FrickTrackCellsYeah(A,framesForDir,pvalue,[]);
-            else
-            end
-
-            TC =1;
-setSceneAndTime;
-end
-
-function Tracked = loadTrackedStructure
-global SceneDirectoryPath timeFrames TC ExportName
-cd(SceneDirectoryPath)
-trackfile = dir(strcat('*',ExportName,'.mat'));
-if ~isempty(trackfile)
-    trackfilelist = {trackfile.name};
-    Selection=[];
-    [Selection,~] = listdlg('PromptString','Select a tracking file:',...
-                'SelectionMode','single',...
-                'ListSize',[500 300],...
-                'ListString',trackfilelist);
-    if ~isempty(Selection)
-    load(trackfilelist{Selection}); %load Tracked
-    else
-    Tracked = makeTrackingFile(timeFrames);
-    end
-
-    if isempty(Tracked{1}.Cellz)
-    TC=0;
-    else
-    TC =1;
-    end
-    
-else
-    Tracked = makeTrackingFile(timeFrames);
-end
-end
-function loadTrackingFile_callback(~,~)
-global  Tracked TC
-
-Tracked = loadTrackedStructure;
-TC =1;
-end
-
-%make trajectories for overlay of tracking
-function traject = trackingTrajectories(framesForDir,ImageDetails)
-global Tracked imgsize
-
-%   determine the frame to load
-t = strcmp(framesForDir,ImageDetails.Frame);
-t = find(t==1);
-
-xy = cell(1,t);
-lxy = zeros(1,t);
-CC = Tracked{t}.Cellz;
-PX = CC.PixelIdxList;
-% makeIMG = cellfun(@(x) length(x)==1,PX,'UniformOutput',1); %choose only the cells without NAN
-makeIMG = cellfun(@(x) length(x)<2,PX,'UniformOutput',1); %choose only the cells without NAN
-
-    for i = 1:t
-    CC = Tracked{i}.Cellz;
-    %%%%%%%%%%%%%%%%%%%%%
-    % S = regionprops(CC,'Centroid');
-    % xy{i} = vertcat(S(:).Centroid);
-    % lxy(i) = length(xy{i});
-      
-    PXX =  CC.PixelIdxList;
-    makeCentroids = find((~makeIMG)==1); %you don't want to do this calculation through all the NaN, so index for non NAN
-    PX = PXX(~makeIMG);
-    mx = nan(1,length(PXX));
-    my = nan(1,length(PXX));
-        for j = 1:length(PX)
-        px = PX{j};
-    %     [y,x] = ind2sub(CC.ImageSize,px); %x and y come out reverse of S.Centroid
-        y = rem(px-1,imgsize(1))+1; %these two lines replace ind2sub
-        x = (px-y)/imgsize(2) + 1;  %these two lines replace ind2sub
-%         mx(j) = sum(x)./numel(x);
-%         my(j) = sum(y)./numel(y);
-        
-        sx = sort(x);
-        sy = sort(y);
- 
-        pseudomean = round(length(sx)./2);
-            if pseudomean == 0
-            mx(makeCentroids(j)) = NaN; 
-            my(makeCentroids(j)) = NaN;
-            else    
-            mx(makeCentroids(j)) = sx(pseudomean);  %use the make Centroids index to keep the centroids the same color when plotting
-            my(makeCentroids(j)) = sy(pseudomean);  
-            end
-        end
-
-    xy{i} = horzcat(mx',my');
-    lxy(i) = length(xy{i});
-    %%%%%%%%%%%%%%%%%%%%%
-    end
-traject = nan(max(lxy),2,t);
-
-    for i = 1:t
-        traject(1:lxy(i),1:2,i) = xy{i};
-    end
-end
-function trt = calculateTrackingLogical(Stacked)
-
-%make a matrix where 0 means yes there is a segmented cell and 1 means
-%there is no cell there (just NaN value)
-
-mar = cell(1,length(Stacked));
-for i=1:length(Stacked)
-MAR = Stacked{i}.Cellz.PixelIdxList;
-    % mar{i} = cellfun(@(x) isnan(x(1)),MAR,'UniformOutput',1);
-    % CELLFUN IS SLOW!!!!!
-    logx = zeros(1,length(MAR));
-    for j = 1:length(MAR)
-       x = MAR{j}; 
-       if isempty(x)
-       x=NaN;    
-       end
-       logx(j)  = isnan(x(1));
-    end
-mar{i}=logx;
-end
-
-ml = cellfun(@length,mar);
-trt = zeros(max(ml),length(Stacked));
-for i=1:length(Stacked)
-trt(1:ml(i),i) = mar{i};
-end
-end
-function visualizeTrackedStructure(Tracked)
-
-mar = cell(1,length(Tracked));
-for i=1:length(Tracked)
-MAR = Tracked{i}.Cellz.PixelIdxList;
-mar{i} = cellfun(@(x) nansum(isnan(x)),MAR,'UniformOutput',1);
-end
-ml = cellfun(@length,mar);
-trt = zeros(max(ml),length(Tracked));
-for i=1:length(Tracked)
-trt(1:ml(i),i) = mar{i};
-end
-
-figure(11)
-strt = sum(trt,2);
-[~,itrt] = sort(strt);
-sortedtrt = trt(itrt,:);
-startwithCELLidx = (sortedtrt(:,1) ==0);
-endwithCELLidx = (sortedtrt(:,end) ==0);
-subplot(2,1,1);plot(sortedtrt(startwithCELLidx,:)');
-title('should only see rising lines')
-ylim([-0.5 1.5])
-subplot(2,1,2);plot(sortedtrt(endwithCELLidx,:)');
-title('should only see falling lines')
-ylim([-0.5 1.5])
-
-
-end
-function Trackedz = trackingCosmetics(Stacked)
-
-
-%this identifies the maximum length to identify the total number of cells
-    MARlength = zeros(1,length(Stacked));
-    for i=1:length(Stacked)
-    MAR = Stacked{i}.Cellz.PixelIdxList;
-    MARlength(i) = length(MAR);
-    end
-
-    %this makes a cell for each cell in all of the frames
-    for i=1:length(Stacked)
-    MAR = Stacked{i}.Cellz.PixelIdxList;
-    PX = cell(1,max(MARlength));
-    PX(1:MARlength(i)) =  MAR;
-    PX(MARlength(i)+1:max(MARlength)) =  {NaN};
-    Stacked{i}.Cellz.PixelIdxList = PX;
-    end
-
-    %this makes a cell for each cell in all of the frames
-    for i=1:length(Stacked)
-    MAR = Stacked{i}.Cellz.PixelIdxList;
-%     llist = Stacked{i}.Cellz.PixelIdxList.lengthlist;
-    MARi = cellfun(@(x) length(x),MAR,'UniformOutput',1);
-    MARidx = ~logical(MARi<2);
-    MARidx = ~logical(cellfun(@(x) length(x)<2,MAR,'UniformOutput',1));
-    PX = cell(1,max(MARlength));
-    PX(MARidx) =  MAR(MARidx);
-    PX(~MARidx) =  {NaN};
-    Stacked{i}.Cellz.PixelIdxList = PX;
-    end
-
-
-trt = calculateTrackingLogical(Stacked);
-%add the number of NaN remaining
-idxo = ~logical(trt);  %set value of 1 where trt = 0;
-didxo = diff(idxo,[],2);
-    for j=1:size(didxo,1) 
-    %if you ever find a negative 1, you can never have a positive 1 afterward
-    beginoftrack = find(idxo(j,:)==1,1,'first');%first frame of first tracked cell
-    endoftrack = find(didxo(j,:)==-1,1,'last');%last frame of last tracked cell
-    fni = find(didxo(j,:)== -1); %frame at which tracking ends
-    fi = find(didxo(j,:)==1); %frame where tracking begins again
-
-    fi = fi(fi>beginoftrack);
-%     fni = fni(fni==endoftrack | fni<endoftrack); %original code
-    fni = fni(fni<endoftrack);
-
-    if j==120
-        stophere=1;
-    end
-    
-        if ~(sum([isempty(fi) isempty(fni)])>0) %if a track has one cell then none then another cell (track with gap)
-        idxtest = fi>fni; 
-        fiToRemove = fi(idxtest)+1; %the extra cell begins at (fi+1)
-            %move the post-gap cells to the end
-            for jy = 1:length(fiToRemove)
-                for ky = 1:length(Stacked)
-                    PX = Stacked{ky}.Cellz.PixelIdxList;
-                    px = cell(1,length(PX)+1);
-                    px(1:length(PX)) = PX;
-                    if ky<fiToRemove(jy)  %if it is before the extra cell, then set the end values to NaN and do nothing to the tracking
-                    %PX modifications
-                    px(length(PX)+1) = {NaN};
-                    Stacked{ky}.Cellz.PixelIdxList = px;                    
-                    else %once the frame corresponds to the beginning of the extra cell, move it to the end and change the orignial tracking to NaN;
-                    px(length(PX)+1) = PX(j);
-                    px(j) = {NaN};
-                    Stacked{ky}.Cellz.PixelIdxList = px;
-                    end
-                end
-            end
-            %make the same changes to trt
-                for jy = 1:length(fiToRemove)
-                Trt = zeros(size(trt,1)+1,size(trt,2));
-                Trt(1:size(trt,1),:) = trt; %set up new matrix
-                Trt(size(trt,1)+1,1:fiToRemove(jy)-1) = 1; %for all times before gap cell, make = NaN
-                Trt(size(trt,1)+1,fiToRemove(jy):end) = trt(j,fiToRemove(jy):end); %for all times following, make equal to gap cell
-                Trt(j,fiToRemove(jy):end) = 1;
-                trt = Trt;
-                end
-            
-        else    
-        end
-    end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% trtz = calculateTrackingLogical(Stacked); %1 is no cell, 0 is cell
-
-%if strt = 1 all the way through = length(1:length(Tracked))
-index = find(trt(:,1)==1);
-strt = sum(trt(index,:),2);
-    istrt = (strt == length(1:length(Stacked)));
-    pxidxremove = index(istrt);
-    pxidx = 1:length(Stacked{1}.Cellz.PixelIdxList);
-    pxidx(pxidxremove) = [];
-%     pxidx(pxidxremove) = {NaN};
-        for j=1:length(Stacked)
-        PX = Stacked{j}.Cellz.PixelIdxList;
-        px = PX(pxidx);
-        Stacked{j}.Cellz.PixelIdxList = px;
-        Stacked{j}.Cellz.NumObjects = length(px);
-        end
-    Trackedz=Stacked;
-stophere=1;
-end
-
-%function for tracking cells
-function [ Tracked ] = FrickTrackCellsYeah(A,framesForDir,pvalue,trackingChannel)
-%UNTITLED Summary of this function goes here
-%   Detailed explanation goes here
-% cd('D:\Users\zeiss\Documents\MATLAB')
-minimum_nucleus_area=20;
-% minimum_nucleus_area=35;
-Tracked = [];
-Frame = struct();
-
-cd(A)
-cd('flatfield_corrected');
-dirlist = dir(strcat('*',pvalue,'*'));
-cd(char(dirlist.name))
-
-if isempty(trackingChannel)
-cd('NucleusBinary_flat')
-else
-cd('c5_flat')
-end
-
-    cd .. 
-    cd('NucleusBinary_flat')
-imgfiles = dir('*.tif');
-cfile = {imgfiles.name};
-
-%     cd .. 
-%     cd('mKatebinary_flat')
-% imgfiles = dir('*.tif');
-% cfilemkate =  {imgfiles.name};
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%This section involves calculating the nearest neighbor to the centroid
-%and organizing PixelLists and Centroid lists to match nearest neighbor
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-i=1;
-for i = 1:length(cfile)
-    cd .. 
-    cd('NucleusBinary_flat')
-    img = imread(char(cfile{i}));
-    
-%     %%%incorporate mKate signal into the segmentation
-%     cd .. 
-%     cd('mKatebinary_flat')
-%         imgmkate = imread(char(cfilemkate{i}));
-%     If = uint8(logical(img) | logical(imgmkate));
-%     img = If;
-    
-CC = bwconncomp(img);
-PX = CC.PixelIdxList;
-%choose segmented nuclei above a certain size only
-segment_Area = cellfun(@length,PX);
-true_cells = segment_Area > minimum_nucleus_area;
-PX = PX(true_cells);
-CC.PixelIdxList = PX;
-CC.NumObjects = numel(PX);
-
-PXarray{i} = PX;
-
-if i==1
-S = regionprops(CC,'Centroid');
-Smat = vertcat(S.Centroid);
-
-B{i}=Smat;
-Frame.filename = char(cfile{i});
-Frame.Cellz = CC;
-Tracked{i} = Frame;
-else
-S = regionprops(CC,'Centroid');
-Smat = vertcat(S.Centroid); 
-
-if ~isempty(Smat)
-[Idx,Eps] = knnsearch(Smat,B{i-1},'K',1); %B{i-1} = Smat(Idx)
-SameCellPX = PX(Idx);
-else
-SameCellPX = Tracked{i-1}.Cellz.PixelIdxList;
-end
-
-
-num_cells_set = 1:size(Smat,1);
-[n, bin] = histc(Idx, num_cells_set);
-multiple = find(n>1); %the same cell is called closest to two previous cells
-missers = find(n<1); %these are likely new cells
-    if ~isempty(multiple)
-        for loop = multiple'
-            index    = find(ismember(bin, loop));
-            winnerofrepeatidx =  find(Eps == min(Eps(index)));
-            loserz = setdiff(index,winnerofrepeatidx);
-%             if length(loserz)>100
-%                 stophere=1;
-%             end
-%             for lsrz = loserz'
-%             SameCellPX(end+1) = SameCellPX(lsrz);
-%             end
-            
-            SameCellPX(loserz) = {NaN}; %remove multiple links to same cell from previous frame so that cell is only linked to one previous
-            
-        end
-    end
-
-
-AllCellsPX = horzcat(SameCellPX,PX(missers));
-CC.PixelIdxList = AllCellsPX;
-CC.NumObjects = numel(AllCellsPX);
-S = regionprops(CC,'Centroid');
-Smat = vertcat(S.Centroid);
-CC.Centroid = Smat;
-B{i}=Smat;
-
-Frame.filename = char(cfile{i});
-Frame.Cellz = CC;
-Tracked{i} = Frame;
-end
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%This section involves calculating the nearest neighbor to the centroid
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-stophere=1;
-
-
-
-% for i = 1:length(B)
-% xy = B{i};
-% c = colormap(lines(length(xy)));
-% scatter(xy(:,1),xy(:,2),[],c);hold on
-% end
-
-stophere=1;
-end
 
 %% Image Display functions
 function setSceneAndTime
-global TC A  framesForDir ImageDetails  Tracked SceneList  SceneDirectoryPath imgfile 
+global TC A  framesForDir ImageDetails  Tracked SceneList  SceneDirectoryPath imgfile imgsize
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   determine the channel directory
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3028,7 +3894,7 @@ t = find(t==1);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   choose the channel image
+% choose the channel images
 %options are overlay of background
 %overlay of fluorescent channels
 %normal image
@@ -3055,7 +3921,7 @@ imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
 %         cimgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
 %         cimg = imread(char(cimgfile.name));
 %         channelimg = double(cimg);
-        prim = imdilate(bwperim(~logical(bkgimg)),strel('square',1));
+        prim = imdilate(bwperim(~logical(bkgimg)),strel('square',2));
         channelimg(prim) = max(max(channelimg));
     elseif strcmp(ImageDetails.Channel,'overlay')
            
@@ -3112,134 +3978,45 @@ imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
         cd('tiffs')
         ff = dir(strcat('*',ImageDetails.Channel,'*'));
 %         ff = dir(strcat(ImageDetails.Channel,'*'));
+%         channelspacing = round(linspace(1,length(framesForDir),9));
+        channelspacing = [1 2 3 4 40 41 42 44 45];
+
+        channelimgstack = zeros([imgsize(1) imgsize(2) length(channelspacing)]);
+        for i = 1:length(channelspacing)
+            t = channelspacing(i);
+            channelimgstack(:,:,i) = double(loadUpTiffStackFrame(char(ff.name),t));
+        end
+        
         channelimg = double(loadUpTiffStackFrame(char(ff.name),t));
     %     channelimg = double(imread(char(imgfile.name)));    %load normal image
     end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+If = zeros(size(channelimg));
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   choose the segmentation image
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     subdirname = char(subdir);
+%         [sceneinfo,b] = regexp(subdirname,'s[0-9]+');
+%         scenename = subdirname(sceneinfo:b);
+%         cd(subdirname)
 
-    if isempty(Tracked{1}.Cellz)
-        TC = 0;
-    cd .. 
-    cd('NucleusBinary_flat')
-    imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
-    segmentimg = double(imread(char(imgfile.name)));
-    If = segmentimg;
-    
-    %%%incorporate mKate signal into the segmentation
-%     cd .. 
-%     cd('mKatebinary_flat')
-%     imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
-%     segmentimg = double(imread(char(imgfile.name)));
-%     Iff = segmentimg;
-%     If = double(logical(If) | logical(Iff));
-    %%%%%%%
-    
+FinalImage = channelimgstack;
+subdirname = SceneDirectoryPath;
+scenename = ImageDetails.Scene;
+filename = imgfile;
+filename = char(filename.name);
+channel = ImageDetails.Channel;
 
-    Tracked = loadTrackedStructure;
-    else  %if there exists segmenttracking already...then load that. 
-
-    CC = Tracked{t}.Cellz;
-    PX = CC.PixelIdxList;
-%     makeIMG = cellfun(@(x) length(x)==1,PX,'UniformOutput',1); %choose only the cells without NAN
-    makeIMG = cellfun(@(x) length(x)<2,PX,'UniformOutput',1); %choose only the cells without NAN
-    CC.PixelIdxList = PX(~makeIMG);
-    CC.NumObjects = length(PX(~makeIMG));
-
-    segmentimgL = labelmatrix(CC);
-    segmentimg = zeros(size(segmentimgL));
-    segmentimg(segmentimgL>0)=1;
-    If = segmentimg;
-    end
-    
-clear segmentimg
-
-
-% 
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %updatecomments
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %   determine the frame to load
-%       
-%       ix = cellfun(@length,PX,'UniformOutput',1);
-%       idxs = ix>1;
-%       idx = find(idxs==1);
-% 
-% fnames = fieldnames(Tracked{length(Tracked)});
-% if sum(strcmp(fnames,'comments'));
-%     oldcomments = Tracked{length(Tracked)}.comments;
-%     oldcommentpos = Tracked{length(Tracked)}.commentpos;
-%     comments=[];
-%     commentpos =[];
-%     else
-%     oldcomments = [];
-%     oldcommentpos = [];
-%     comments = [];
-%     commentpos =[];
-% end
-% 
-% comments = cell(1,length(idx));
-% commentpos = zeros(1,length(idx));
-% 
-% %%%%need to determine xy
-% xy=getxy([],[]);
-% indies = sub2ind(imgsize,xy(:,2),xy(:,1));
-% 
-% if ~isempty(oldcommentpos)
-%     for jim = idx
-%         cycle=0;
-%         for i = 1:length(oldcommentpos)
-%             cycle=cycle+1;
-%        px = PX{jim};
-%        alreadycommented = ismember(oldcommentpos(i),px);
-%        indiidx = find(ismember(indies,px)==1);
-%            if alreadycommented ==1
-%             comments{indiidx} = oldcomments{i};
-%             commentpos(indiidx) = oldcommentpos(i);
-%            else
-%                
-%            end
-%         end
-%     end
-% else
-% 
-% 
-% for i=idx
-%     px = PX{i};
-%     indiidx = find(ismember(indies,px)==1);
-%     commentpos(indiidx) = indies(indiidx);  
-% end
-% 
-% end  
-% 
-% 
-% for i=1:length(comments)
-%     cellnums{i} = strcat('cell#',num2str(i));
-%     if isempty(comments{i})
-%         comments{i}='';
-%     end
-% end
-% 
-% Tracked{length(Tracked)}.comments= comments;
-% Tracked{length(Tracked)}.commentpos = commentpos;
-% 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% disp(TC)
-if TC == 1
-Tracked = trackingCosmetics(Tracked);
-end
-TC=0;
-
-displayImageFunct(If,channelimg);
+if strcmp(ImageDetails.Channel,'EGFP')
+IfStack = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel);   
+elseif strcmp(ImageDetails.Channel,'mKate')
+IfStack = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);
 end
 
+
+displayImageFunct(IfStack,channelimgstack,channelspacing);
+updateSliders
+end
 
 function contrast_Callback(~,~)
 global tcontrast lcontrast adjuster
@@ -3256,9 +4033,8 @@ setSceneAndTime
 adjuster =0;
 end
 
-
-function displayImageFunct(If,channelimg)
-global displaycomments lprcntlt prcntlt tcontrast lcontrast MainAxes displaytracking ImageDetails framesForDir prcntlz lprcntlz prcntlk lprcntlk prcntl lprcntl D ExpDate cmap cmaplz adjuster
+function displayImageFunct(IfStack,channelimgstack,channelspacing)
+global subaxes displaycomments lprcntlt prcntlt tcontrast lcontrast MainAxes displaytracking ImageDetails framesForDir prcntlz lprcntlz prcntlk lprcntlk prcntl lprcntl D ExpDate cmap cmaplz adjuster
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   determine the frame to load
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3269,26 +4045,19 @@ t = find(t==1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   display the images overlayed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-axes(MainAxes);
+% axes(MainAxes);
 children = findobj(MainAxes,'Type','image');
 delete(children);
 
-ifCHANGEofCHANNELorSCENE=0;
-if t==1
-D='new';
-ifCHANGEofCHANNELorSCENE=1;
-end
 
-if ~strcmp(ImageDetails.Channel,D)
-ifCHANGEofCHANNELorSCENE=1;
-D = ImageDetails.Channel;
-end
 
-if adjuster ==1
-    ifCHANGEofCHANNELorSCENE = 1;
-    D = ImageDetails.Channel;
-end
-
+for i=1:size(channelimgstack,3)
+    If = IfStack(:,:,i);
+    channelimg = channelimgstack(:,:,i);
+    ax = subaxes(i);
+    axes(ax);
+    
+%scale the image brightness
 if strcmp(ImageDetails.Channel,'overlay') %when overlay display is desired
     imgone = channelimg(:,:,1);
     imgtwo = channelimg(:,:,2);
@@ -3339,60 +4108,32 @@ if strcmp(ImageDetails.Channel,'overlay') %when overlay display is desired
 %     channelimg(:,:,3)=uint8(If.*255);
 
 else  %under normal circumstances
-        if ifCHANGEofCHANNELorSCENE==1
         cimgline = reshape(channelimg,[1 size(channelimg,1).*size(channelimg,2)]);
         lprcntl = prctile(cimgline,lcontrast);
 %         prcntl = prctile(cimgline,tcontrast)-lprcntl;
         prcntl = prctile(cimgline-lprcntl,tcontrast);
-        ifCHANGEofCHANNELorSCENE=0;
-        end
+
 
     channelimg = uint8(((channelimg-lprcntl)./prcntl).*255);
     channelimg(channelimg == 255) =254;
     colormap(cmap);
     If = bwperim(If);
+    If = imdilate(If,strel('disk',1));
     channelimg(If>0)=255;
 end
+
+
 
 
 himg = imagesc(channelimg);
 himgax = get(himg,'Parent');
 himgax.CLim = [0 256];
-% SLOW 
-%himgax.Title.String = strcat(ExpDate,'...',ImageDetails.Scene,'...frame ',num2str(t),' out of', num2str(length(framesForDir)));
-%himgax.Title.FontSize = 12;
 ttl = get(himgax,'Title');
-set(ttl,'String',strcat(ExpDate,'...',ImageDetails.Scene,'...frame ',num2str(t),' out of', num2str(length(framesForDir))));
+set(ttl,'String',strcat(num2str(i),'-',ExpDate,'...',ImageDetails.Scene,'...frame ',num2str(t),' out of', num2str(length(framesForDir))));
 set(ttl,'FontSize',12);
-
-
-    if ~(t==1)
-        if displaytracking==1
-            traject = trackingTrajectories(framesForDir,ImageDetails);
-            
-            himgax.NextPlot = 'add';
-            % rgbhax.NextPlot = 'replace';
-            mainX = squeeze(traject(:,1,:));
-            mainY = squeeze(traject(:,2,:));
-            idx = ~isnan(mainY(:,t));
-            
-            h = plot(mainX(idx,:)',mainY(idx,:)','LineWidth',2);
-            
-            cmaplz = colormap(lines(size(mainX,1)));
-            cmaplz = cmaplz(idx,:);
-                for i=1:length(h)
-                    h(i).Color = cmaplz(i,:);
-                end
-            colormap(cmap);
-            hax = h.Parent;
-            hax.Color = 'none';
-            himgax.CLim = [0 256];
-            himgax.NextPlot = 'replace';
-        end
-    end
 himgax.YTick = [];
 himgax.XTick = [];
-
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -3438,15 +4179,6 @@ cd ..
 end
 
 %% functions for determining variables
-function img_stack = loadImageStack(fname)
-info = imfinfo(fname);
-num_images = numel(info);
-img_stack = zeros([info(1).Width info(1).Height num_images]);
-for k = 1:num_images
-   img_stack(:,:,k) = imread('NucleusBinary_flat.tif', k, 'Info', info);
-end
-end
-
 function [timeFrames,framesForDir] = determineTimeFrames(spec_directory)
 dirlist = dir('_Hoechst_flat');
 if isempty(dirlist)
@@ -3502,28 +4234,6 @@ end
 
 
 %% load up images
-function FinalImage=loadUpFinalImageOfStack(filenames)
-cfile = filenames;
-FileTif = char(cfile);
-InfoImage=imfinfo(FileTif);
-
-mImage=InfoImage(1).Width;
-nImage=InfoImage(1).Height;
-NumberImages=length(InfoImage);
-FinalImage=zeros(nImage,mImage,NumberImages,'uint16');
- 
-TifLink = Tiff(FileTif, 'r');
-bb=1;
-i = 1;
-
-i = NumberImages;
-   TifLink.setDirectory(i);
-   FinalImage=TifLink.read();
-   
- 
-end
-
-
 function FinalImage=loadUpTiffStack(filenames)
 cfile = filenames;
 FileTif = char(cfile);
@@ -3540,7 +4250,6 @@ TifLink = Tiff(FileTif, 'r');
        FinalImage(:,:,i)=TifLink.read();
     end
 end
-
 function FinalImage=loadUpTiffStackFrame(filenames,frame)
 cfile = filenames;
 FileTif = char(cfile);
@@ -3557,7 +4266,3 @@ TifLink = Tiff(FileTif, 'r');
        FinalImage=TifLink.read();
     
 end
-
-
-
-
