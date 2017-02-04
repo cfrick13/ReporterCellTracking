@@ -53,7 +53,7 @@ mdir = mfilename('fullpath');
     parentdir = mdir(1:b(end-1));
 cd(parentdir)
 
-exportdir = strcat(parentdir,'Tracking\Export\');
+exportdir = strcat(parentdir,'Tracking/Export/');
 
 A = parentdir;
 cd(A)
@@ -178,6 +178,12 @@ hEliminate = uicontrol('Style','pushbutton','String','Eliminate [e]',...
 hDestroy = uicontrol('Style','pushbutton','String','Destroy',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@destroybutton_Callback);
+hDestroy = uicontrol('Style','pushbutton','String','DestroyPrevious',...
+    'Position',[xpositions(mmm)-120,ypositions(mmm),buttonwidth,buttonheight],...
+    'Callback',@destroybuttonAllPrevious_Callback);
+hDestroy = uicontrol('Style','pushbutton','String','DestroySubsequent',...
+    'Position',[xpositions(mmm)-120,ypositions(mmm+2),buttonwidth,buttonheight],...
+    'Callback',@destroybuttonAllSubsequent_Callback);
 hchosenOnes = uicontrol('Style','pushbutton','String','Chosen Ones',...
     'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@chosenOnes_Callback);
@@ -777,6 +783,86 @@ end
 
 end
 end
+
+
+function destroybuttonAllPrevious_Callback(~,~)
+%delete a cell from all frames
+global ImageDetails framesForDir Tracked imgsize
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   determine the frame to load
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+t = strcmp(framesForDir,ImageDetails.Frame);
+t = find(t==1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+CC = Tracked{t}.Cellz;
+PX = CC.PixelIdxList;   
+    
+    
+% Display mesh plot of the currently selected data.
+    [cellxx,cellyy,~] = ginput();
+    cellx = round(cellxx);
+    celly = round(cellyy);
+    
+      cellind = sub2ind(imgsize,celly,cellx);
+      
+      for j=1:length(cellxx)
+      if j==1
+      idxs = cellfun(@(x) isempty(find(x==cellind(j),1)),PX,'UniformOutput',1);
+      else
+      idxs = idxs & cellfun(@(x) isempty(find(x==cellind(j),1)),PX,'UniformOutput',1);
+      end
+      end
+      
+Trackedz = crushThem(Tracked,idxs,[],t);      
+Tracked = Trackedz;
+
+
+   setSceneAndTime
+
+
+
+end
+function destroybuttonAllSubsequent_Callback(~,~)
+%delete a cell from all frames
+global ImageDetails framesForDir Tracked imgsize
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   determine the frame to load
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+t = strcmp(framesForDir,ImageDetails.Frame);
+t = find(t==1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+CC = Tracked{t}.Cellz;
+PX = CC.PixelIdxList;   
+    
+    
+% Display mesh plot of the currently selected data.
+    [cellxx,cellyy,~] = ginput();
+    cellx = round(cellxx);
+    celly = round(cellyy);
+    
+      cellind = sub2ind(imgsize,celly,cellx);
+      
+      for j=1:length(cellxx)
+      if j==1
+      idxs = cellfun(@(x) isempty(find(x==cellind(j),1)),PX,'UniformOutput',1);
+      else
+      idxs = idxs & cellfun(@(x) isempty(find(x==cellind(j),1)),PX,'UniformOutput',1);
+      end
+      end
+      
+Trackedz = crushThem(Tracked,idxs,t,[]);      
+Tracked = Trackedz;
+
+
+   setSceneAndTime
+
+
+
+end
+
+
 function destroybutton_Callback(~,~)
 %delete a cell from all frames
 global ImageDetails framesForDir Tracked imgsize

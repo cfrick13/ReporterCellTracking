@@ -1,6 +1,6 @@
 function  uiSegmentTimeLapseImages
 
-global denoisepath  sliderOne sliderOneTxt pStruct subaxes   exportdir  channelinputs adjuster cmapper tcontrast lcontrast   OGExpDate   cmap  A AA timeFrames framesForDir ImageDetails  SceneList  imgsize ExpDate
+global denoisepath subaxestwo  pStruct subaxes   exportdir  channelinputs adjuster cmapper tcontrast lcontrast   OGExpDate   cmap  A AA timeFrames framesForDir ImageDetails  SceneList  imgsize ExpDate
 adjuster=0;
 imgsize = [512 512];
 tcontrast = 99;
@@ -168,85 +168,7 @@ uicontrol('Style','popupmenu',...
     'Callback',@popup_menu_Callback_channels);
         mmm=mmm+1;mmm=mmm+1; mmm=mmm+1;
         
-        
-% hAddArea
-uicontrol('Style','pushbutton','String','AddArea [v]',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@addareabutton_Callback);
-% hLinkCells
-uicontrol('Style','pushbutton','String','LinkCells [r]',...
-    'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@linkCells_Callback);
-        mmm=mmm+1;mmm=mmm+1;
-% hDelete
-uicontrol('Style','pushbutton','String','Delete [d]',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@deletebutton_Callback);
-% hEliminate
-uicontrol('Style','pushbutton','String','Eliminate [e]',...
-    'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@eliminatebutton_Callback);
-        mmm=mmm+1;mmm=mmm+1;
-        
-        
-%hDestroy
-uicontrol('Style','pushbutton','String','Destroy',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@destroybutton_Callback);
-
-%hchosenOnes 
-uicontrol('Style','pushbutton','String','Chosen Ones',...
-    'Position',[xpositions(mmm)+40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@chosenOnes_Callback);
-       mmm=mmm+1;mmm=mmm+1;
-       
-% hRemoveArea
-uicontrol('Style', 'pushbutton', 'String', 'Remove area',...
-    'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight/1.5],...
-    'Callback',@removeArea_Callback);
-        mmm= mmm+1;
-% hchosenOnesEnd 
-uicontrol('Style','pushbutton','String','Chosen Ones EndOnly',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
-    'Callback',@chosenOnesEnd_Callback);
-       mmm=mmm+1;
-
-        
-% hErode
-uicontrol('Style','pushbutton','String','Erode Chosen Only',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
-    'Callback',@erodeOnes_Callback);
-       mmm=mmm+1;
-
-
-% hDilate
-uicontrol('Style','pushbutton','String','Dilate Chosen Only',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
-    'Callback',@dilateOnes_Callback);
-       mmm=mmm+1; mmm=mmm+1;mmm=mmm+1;
-
-        
-% hDisplayTracking
-uicontrol('Style','pushbutton',...
-    'String','DisplayTracking [m]',...
-    'Position',[xpositions(mmm)-(buttonwidth./2),ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@displayTrackingButton_Callback);
-% hTrack
-uicontrol('Style','pushbutton',...
-    'String','Run Tracking [t]',...
-    'Position',[xpositions(mmm)+(buttonwidth./2),ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@trackbutton_Callback);
-        mmm=mmm+1; mmm=mmm+1;
-        mmm=mmm+1;
-
-%  hContrast
-uicontrol('Style','pushbutton',...
-    'String','contrast user',...
-    'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@contrast_Callback);       
-        mmm=mmm+1; mmm=mmm+1;      
-        
-        
+  
         %%%%
         %%%%
 % hSaveTrackingAs
@@ -262,67 +184,6 @@ uicontrol('Style','pushbutton',...
     'Position',[xpositions(mmm),ypositions(mmm),buttonwidth,buttonheight],...
     'Callback',@loadTrackingFile_callback);
         mmm=mmm+1; mmm=mmm+1; mmm=mmm+1;
-
-        
-% hPlot
-uicontrol('Style','pushbutton',...
-    'String','PLOT!',...
-    'Position',[xpositions(mmm)-0,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@Plot_callback);
-
-% hPlotCFPnorm
-uicontrol('Style','pushbutton',...
-    'String','plotCFPnorm?',...
-    'Position',[xpositions(mmm)-90,ypositions(mmm)+20,buttonwidth,buttonheight./2],...
-    'Callback',@PlotCFPnorm_callback);
-
-% hPlotCFPnotnorm 
-uicontrol('Style','pushbutton',...
-    'String','plotCFPnotnorm?',...
-    'Position',[xpositions(mmm)-90,ypositions(mmm),buttonwidth,buttonheight./2],...
-    'Callback',@PlotCFPnotnorm_callback);
-
-
-% hPlotSpecificCell
-uicontrol('Style','pushbutton',...
-    'String','Plot Specific Cell!',...
-    'Position',[xpositions(mmm)+80,ypositions(mmm)+buttonheight./2,buttonwidth,buttonheight./2],...
-    'Callback',@Plot_SpecificCell_callback);
-% hPlotSettings 
-uicontrol('Style','pushbutton',...
-    'String','Plot Settings!',...
-    'Position',[xpositions(mmm)+80,ypositions(mmm),buttonwidth,buttonheight./2],...
-    'Callback',@PlotSettings_callback);
-      mmm=mmm+1;  mmm=mmm+1;
-      
-% hExportCells
-uicontrol('Style','pushbutton',...
-    'String','Export Cells',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
-    'Callback',@exportCells);
-        mmm=mmm+1; 
-        
-% hLabelCells
-uicontrol('Style','pushbutton',...
-    'String','Label Cells',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
-    'Callback',@labelCells);
-        mmm=mmm+1; 
-        
-        
-% hcomment
-uicontrol('Style','pushbutton','String','Comments',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*2,buttonheight./2],...
-    'Callback',@comment_Callback);
-       mmm=mmm+1; mmm=mmm+1; mmm=mmm+1;
-        
-% hExportLabelsCells
-uicontrol('Style','pushbutton',...
-    'String','ExportLabels',...
-    'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight],...
-    'Callback',@ exportLabels);
-%     'Callback',@ exportFrames);
-        
        
 
         
@@ -367,7 +228,22 @@ for i=1:channelimglength
     subaxes(i) = ax;
 end
 
-
+w=0.15;
+h=0.15;
+x = [0.62 0.8 0.62 0.8];
+y = [0.32 0.32 0.02 0.02];
+for i=1:4
+    ax= axes();
+    ax.Position = [x(i) y(i) w h];
+    ax.Units = 'inches';
+    pos = ax.Position;
+    pos(4) = pos(3);
+    ax.Position = pos;
+    ax.Units = 'normalized';
+    ax.XTick = [];
+    ax.YTick = [];
+    subaxestwo(i) = ax;
+end
 
 
 
@@ -429,7 +305,7 @@ end
 
 
 function updateSliders
-global pStruct ImageDetails sliderOne sliderOneText
+global pStruct ImageDetails sliderOne sliderOneTxt
 
 %slider1
 sliderx = 0.72;
@@ -448,7 +324,7 @@ channel = ImageDetails.Channel;
 %nucDiameter
 str = 'nucDiameter';
 val.(str) = pStruct.(channel).(str);
-slidery = 0.55;
+slidery = 0.75;
 minz = 1;
 maxz = 400;
 sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
@@ -465,7 +341,7 @@ sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1
 % threshFactor
 str = 'threshFactor';
 val.(str) = pStruct.(channel).(str);
-slidery = 0.5;
+slidery = 0.725;
 minz = 0.5;
 maxz = 3;
 sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(10*(maxz-minz)),'Value',val.(str),'Position', [1 1 1 1],...
@@ -484,7 +360,7 @@ sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1
 % gaussian smoothing)
 str = 'sigmaScaledToParticle';
 val.(str) = pStruct.(channel).(str);
-slidery = 0.45;
+slidery = 0.7;
 minz = 1;
 maxz = 40;
 sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
@@ -500,7 +376,7 @@ sliderOneTxt.(str) = uicontrol('Style','text','Units','Normalized','Position',[1
 % noparemtercurrently
 str = 'noparametercurrently';
 val.(str) = pStruct.(channel).(str);
-slidery = 0.40;
+slidery = 0.675;
 minz = 1;
 maxz = 400;
 sliderOne.(str) = uicontrol('Style', 'slider','String',str,'Min',minz,'Max',maxz,'SliderStep',[1 1]./(maxz-minz),'Value',val.(str),'Position', [1 1 1 1],...
@@ -527,9 +403,6 @@ function channelinputs =channelregexpmaker(channelstoinput)
         end
     end
 end
-
-
-
 
 
 
@@ -560,35 +433,31 @@ function sliderOneAdjust(source,~)
 end
 
 
+function plotTestOut(testOut)
+    global subaxestwo
 
+    stringsToTest = {'Ih','gradmag','gradmag2','rawMinusLP'};
+    for i = 1:length(subaxestwo)
+    axes(subaxestwo(i))
+    str = stringsToTest{i};
+    img = testOut.(str);
+    imagesc(img);title(str);
+    end
+    
+%         testOut.img = img;
+%         testOut.imgRawDenoised = imgRawDenoised;
+%         testOut.imgLowPass = imgLowPass;
+%         testOut.rawMinusLP = rawMinusLP;
+%         testOut.rawMinusLPScaled = rawMinusLPScaled;
+%         testOut.Ih = Ih;
+%         testOut.L = zeros[512 512];
+%    
 
-
-
-
-
-
-function FinalImage=loadStack(FileTif)
-% [a,b] = uigetfile;
-% FileTif = a;
-% cd (b)
-InfoImage=imfinfo(FileTif);
-mImage=InfoImage(1).Width;
-nImage=InfoImage(1).Height;
-NumberImages=length(InfoImage);
-FinalImage=zeros(nImage,mImage,NumberImages,'uint16');
- 
-TifLink = Tiff(FileTif, 'r');
-for i=1:NumberImages
-   TifLink.setDirectory(i);
-   FinalImage(:,:,i)=TifLink.read();
 end
-TifLink.close();
-end
+  
 
 
-
-
-function IfFinal = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel)
+function [IfFinal,testOut] = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel)
 global  pStruct 
 cd(subdirname)
 
@@ -700,10 +569,11 @@ imgRawDenoised = imgRaw;
     Ihc = imclose(Ih,strel('disk',4));
     Ihcf = imfill(Ihc,'holes');
     Im=Ihcf;
+    
 
-
-
-    %%%%% this is the ultimate addition for watershed segmentation!!!
+    
+    
+%%%%% this is the ultimate addition for watershed segmentation!!!
     see = strel('disk',1);
     seo = strel('disk',8);
     Isum = Im;
@@ -711,42 +581,99 @@ imgRawDenoised = imgRaw;
 %     figure(2)
     for i=1:(nucDiameter/2)
         Ier = imerode(Ier,see);
-%                 subplot(1,2,1);
-%                 imagesc(Ier)
-%         Iero = imopen(Ier,seo);
-    %     Isum = Isum+(Iero.*i);
         Isum = Isum+Ier;
-%                 subplot(1,2,2);
-%                 imagesc(Isum)
-%                 drawnow
-%                 pause(0.1)
-%         Ier=Iero;
-%  disp(max(max(Isum)))
     end
     Isum(Isum>nucDiameter) = nucDiameter;
+     waterBoundary = imerode(Im,strel('disk',1));
+    
+    
+    
+    
+% I = imgRawDenoised;
+% I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
+I = rawMinusLPScaled;
 
-    gausshed = gaussianBlurz(Isum,ceil(sigma./4),ceil(kernelgsize./1));
-    imgt = -double(gausshed);
-    waterBoundary = imerode(Im,strel('disk',1));
-    imgt(~(waterBoundary>0)) = -Inf;
-    L=watershed(imgt);
+%gradmag
+hy = fspecial('sobel');
+hx = hy';
+Iy = imfilter(double(I), hy, 'replicate');
+Ix = imfilter(double(I), hx, 'replicate');
+gradmag = sqrt(Ix.^2 + Iy.^2);
 
-    L(waterBoundary<1) = 0;
-    If = L>1;
-%     If = imerode(If,strel('disk',finalerode));
+%Smoothing
+I = Isum;
+se = strel('disk', 10);
+Io = imopen(I, se);
+% se = strel('disk', ceil(nucDiameter./6));
+Ie = imerode(I, se);
+Ieg = gaussianBlurz(Ie,sigma./2,kernelgsize);
+Iobr = imreconstruct(Ie, I);
+Iobrd = imdilate(Iobr, se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd), imcomplement(Iobr));
+Iobrcbr = imcomplement(Iobrcbr);
+fgm = imregionalmax(Ieg);
+% fgm = imregionalmax(Iobrcbr);
+se2 = strel(ones(2,2));
+fgm2 = imclose(fgm, se2);
+fgm3 = imerode(fgm2, se2);
+% fgm4 = bwareaopen(fgm3, 2);
+fgm4 = imdilate(fgm,strel('disk',5));
+% bw = imbinarize(Iobrcbr);
+bw = Im;
+D = bwdist(bw);
+DL = watershed(D,4);
+bgm = DL == 0;
+gradmag2 = imimposemin(gradmag, bgm | fgm4);
+
+L = watershed(gradmag2,8);
+L(waterBoundary<1) = 0;
+If = L>1;
+
+
+
+
+% figure(3)
+% 
+% subplot(1,7,1);imagesc(I)
+% subplot(1,7,2);imagesc(Io)
+% subplot(1,7,3);imagesc(Ie)
+% subplot(1,7,4);imagesc(Ieg);
+% subplot(1,7,5);imagesc(bgm | fgm4);
+% subplot(1,7,6);imagesc(gradmag2);
+% subplot(1,7,7);imagesc(If);
+
 
 
     
     time = tsn{frames};
     tim = time(2:end);
     IfFinal(:,:,frames)=If;
+    
+       if frames==1
+        testOut.img = img;
+        testOut.imgRawDenoised = imgRawDenoised;
+        testOut.imgLowPass = imgLowPass;
+        testOut.rawMinusLP = rawMinusLP;
+        testOut.rawMinusLPScaled = rawMinusLPScaled;
+        testOut.Ih = Ih;
+        testOut.Ihc = Ihc;
+        testOut.Im = Im;
+%         testOut.gausshed = gausshed;
+%         testOut.imgt = imgt;
+%         testOut.Isum = Isum;
+        testOut.L = L;
+        testOut.gradmag = gradmag;
+        testOut.gradmag2 = gradmag2;
+%         testOut.waterBoundary = waterBoundary;
+       end
 end
 
 
 stophere=1;
 end
 
-function IfFinal = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel)
+
+function [IfFinal,testOut] = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel)
 global  pStruct 
 cd(subdirname)
 
@@ -804,6 +731,7 @@ for frames = 1:size(FinalImage,3)
     highpoints = prctile(denoiseVec,95);
     imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
     
+ 
 %         Options.T = 5;
 %         Options.dt = 1;
 %         Options.Scheme = 'R';
@@ -866,11 +794,11 @@ for frames = 1:size(FinalImage,3)
 %     Ihdcf = imfill(Ihdc,'holes');
 %     Im = Ihdcf;
     Ihc = imclose(Ih,strel('disk',20));
-    Ihcf = imfill(Ihc,'holes');
+%     Ihcf = imfill(Ihc,'holes');
 %     Ihcf = Ihc;
-    Ihcfd = imdilate(Ihcf,strel('disk',20));
+    Ihcd = imdilate(Ihc,strel('disk',20));
 %     Ihcfd = Ihcf;
-    Im=Ihcfd;
+    Im=Ihcd;
     If =Im;
 
 
@@ -881,6 +809,19 @@ for frames = 1:size(FinalImage,3)
     time = tsn{frames};
     tim = time(2:end);
     IfFinal(:,:,frames)=If;
+    
+       if frames==1
+        testOut.img = img;
+        testOut.imgRawDenoised = imgRawDenoised;
+        testOut.imgLowPass = imgLowPass;
+        testOut.rawMinusLP = rawMinusLP;
+        testOut.rawMinusLPScaled = rawMinusLPScaled;
+        testOut.Ih = Ih;
+        testOut.Ihc = Ihc;
+        testOut.Im = Im;
+        testOut.L = zeros([512 512]);
+       end
+    
 end
 
 
@@ -1172,7 +1113,7 @@ zerostrel = 2;
 firststrel = round(30./dimdiff);
 sigmafirst = firststrel.*3;
 kernelgsizefirst = firststrel.*6;
-fracsmoothing = 0.5.*dimdiff;
+
 
 dirlist = dir(nucleus_seg);
 if isempty(dirlist)
@@ -1223,7 +1164,7 @@ sub_scale_corr = double(gaus) - double(gaustwocorr);
 
 subtractionref = sub_scale_corr;
 vec = reshape(subtractionref,size(subtractionref,1)^2,1);
-[numbers,bincenters] = hist(double(vec),0:fracsmoothing:10000);
+[numbers,bincenters] = hist(double(vec),0:5:10000);
 
 
 
@@ -4008,14 +3949,20 @@ filename = char(filename.name);
 channel = ImageDetails.Channel;
 
 if strcmp(ImageDetails.Channel,'EGFP')
-IfStack = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel);   
+[IfStack,testOut] = segmentationEGFP(FinalImage,subdirname,scenename,filename,channel);   
 elseif strcmp(ImageDetails.Channel,'mKate')
-IfStack = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);
+[IfStack,testOut] = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);
 end
 
 
 displayImageFunct(IfStack,channelimgstack,channelspacing);
 updateSliders
+
+plotTestOut(testOut)
+
+
+
+
 end
 
 function contrast_Callback(~,~)

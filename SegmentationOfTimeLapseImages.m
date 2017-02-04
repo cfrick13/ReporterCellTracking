@@ -282,29 +282,53 @@ imgRawDenoised = double(imgRaw);
 %     figure(2)
     for i=1:(nucDiameter/2)
         Ier = imerode(Ier,see);
-%                 subplot(1,2,1);
-%                 imagesc(Ier)
-%         Iero = imopen(Ier,seo);
-    %     Isum = Isum+(Iero.*i);
         Isum = Isum+Ier;
-%                 subplot(1,2,2);
-%                 imagesc(Isum)
-%                 drawnow
-%                 pause(0.1)
-%         Ier=Iero;
-%  disp(max(max(Isum)))
     end
     Isum(Isum>nucDiameter) = nucDiameter;
+     waterBoundary = imerode(Im,strel('disk',1));
+    
+    
+    
+    
+% I = imgRawDenoised;
+% I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
+I = rawMinusLPScaled;
 
-    gausshed = gaussianBlurz(Isum,ceil(sigma./4),ceil(kernelgsize./1));
-    imgt = -double(gausshed);
-    waterBoundary = imerode(Im,strel('disk',1));
-    imgt(~(waterBoundary>0)) = -Inf;
-    L=watershed(imgt);
+%gradmag
+hy = fspecial('sobel');
+hx = hy';
+Iy = imfilter(double(I), hy, 'replicate');
+Ix = imfilter(double(I), hx, 'replicate');
+gradmag = sqrt(Ix.^2 + Iy.^2);
 
-    L(waterBoundary<1) = 0;
-    If = L>1;
-%     If = imerode(If,strel('disk',finalerode));
+%Smoothing
+I = Isum;
+se = strel('disk', 10);
+Io = imopen(I, se);
+% se = strel('disk', ceil(nucDiameter./6));
+Ie = imerode(I, se);
+Ieg = gaussianBlurz(Ie,sigma./2,kernelgsize);
+Iobr = imreconstruct(Ie, I);
+Iobrd = imdilate(Iobr, se);
+Iobrcbr = imreconstruct(imcomplement(Iobrd), imcomplement(Iobr));
+Iobrcbr = imcomplement(Iobrcbr);
+fgm = imregionalmax(Ieg);
+% fgm = imregionalmax(Iobrcbr);
+se2 = strel(ones(2,2));
+fgm2 = imclose(fgm, se2);
+fgm3 = imerode(fgm2, se2);
+% fgm4 = bwareaopen(fgm3, 2);
+fgm4 = imdilate(fgm,strel('disk',5));
+% bw = imbinarize(Iobrcbr);
+bw = Im;
+D = bwdist(bw);
+DL = watershed(D,4);
+bgm = DL == 0;
+gradmag2 = imimposemin(gradmag, bgm | fgm4);
+
+L = watershed(gradmag2,8);
+L(waterBoundary<1) = 0;
+If = L>1;
 
 
     
@@ -1056,6 +1080,7 @@ for frames = 1:size(FinalImage,3)
     highpoints = prctile(denoiseVec,95);
     imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
     
+ 
 %         Options.T = 5;
 %         Options.dt = 1;
 %         Options.Scheme = 'R';
@@ -1118,11 +1143,11 @@ for frames = 1:size(FinalImage,3)
 %     Ihdcf = imfill(Ihdc,'holes');
 %     Im = Ihdcf;
     Ihc = imclose(Ih,strel('disk',20));
-    Ihcf = imfill(Ihc,'holes');
+%     Ihcf = imfill(Ihc,'holes');
 %     Ihcf = Ihc;
-    Ihcfd = imdilate(Ihcf,strel('disk',20));
+    Ihcd = imdilate(Ihc,strel('disk',20));
 %     Ihcfd = Ihcf;
-    Im=Ihcfd;
+    Im=Ihcd;
     If =Im;
 
 

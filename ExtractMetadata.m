@@ -1,6 +1,24 @@
 % reader = bfGetReader('/Volumes/Seagate Backup Plus Drive/FrickData/2017_01_27 plate/exp1 timelapse of all snail clones in NGSmad3 cells.czi');
-reader = bfGetReader('/Volumes/Seagate Backup Plus Drive/FrickData/2017_01_25 plate/exp1 timelapse of caga and pctgf in cmvNGSmad3ex1 cells.czi');
+
+%set directory to location of code being used (generally external harddrive
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+cd(parentdir)
+denoisepath = strcat(parentdir,'Tracking/coherencefilter_version5b/');
+addpath(denoisepath);
+exportdir = strcat(parentdir,'Tracking/Export/');
+
+cd(parentdir)
+[FileName,PathName,~] = uigetfile('*.*');
+cd(PathName)
+reader = bfGetReader(FileName);
 omeMeta = reader.getMetadataStore();
+% reader = bfGetReader('/Volumes/Seagate Backup Plus Drive/FrickData/2017_01_25 plate/exp1 timelapse of caga and pctgf in cmvNGSmad3ex1 cells.czi');
+% omeMeta = reader.getMetadataStore();
 
 % omeMeta = data{1,4};
 
@@ -60,6 +78,14 @@ datastruct.imageDimensions = dimensions;
 datastruct.timeCount= timeCount;
 datastruct.channelCount = channelCount;
 datastruct.sceneCount = imageCount; 
+
+
+[~,b] = regexp(FileName,'exp[0-9]');
+savename = FileName(1:b);
+cd(exportdir)
+savename = strcat(savename,'-metaData.mat');
+clear omeMeta reader deltaT_Hash theC_Hash theT_Hash
+save(savename)
 % datastruct.channelNames = 
 
 % t(theT+1) = y.value
