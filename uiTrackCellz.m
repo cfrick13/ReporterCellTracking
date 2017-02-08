@@ -84,7 +84,8 @@ cd (subdirname)
 
 %determine date of experiment
 [a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
+[c,d] = regexp(A,'exp[0-9]');
+ExpDate = A(a:b+6);OGExpDate = A(a:d); [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
 %determine number of frames in each experiment
 folderlist = dir(strcat('*',SceneList{1},'*'));
 foldername = folderlist.name;
@@ -1348,7 +1349,8 @@ end
 function psettings = PlotSettings_callback(~,~)
 prompt = {'tgfbeta frame','last frame'};
 dlg_title = 'frames where cells must be tracked...';
-framesThatMustBeTracked = str2num(cell2mat(inputdlg(prompt,dlg_title)));
+inputdlgOutput = inputdlg(prompt,dlg_title);
+framesThatMustBeTracked = cellfun(@num2str,inputdlgOutput,'UniformOutput',1);
 psettings.framesThatMustBeTracked = framesThatMustBeTracked;
 end
 

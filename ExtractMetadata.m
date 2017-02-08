@@ -93,7 +93,7 @@ datastruct.channelNames = channelNames;
 savename = FileName(1:b);
 cd(exportdir)
 savename = strcat(savename,'-metaData.mat');
-clear omeMeta reader deltaT_Hash theC_Hash theT_Hash
+clear omeMeta reader deltaT_Hash theC_Hash theT_Hash FileName
 save(savename)
 % datastruct.channelNames = 
 

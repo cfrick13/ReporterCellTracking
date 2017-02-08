@@ -1,4 +1,4 @@
-function plot_exportStruct
+function plot_exportStruct_doses
 close all
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
