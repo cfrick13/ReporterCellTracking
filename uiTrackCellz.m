@@ -26,6 +26,8 @@ end
 
 clearvars -global SceneDirectoryPath
 
+
+
 TC = 1;
 ImageDetails = InitializeImageDetails;
 displaytracking = 0;
@@ -1934,14 +1936,19 @@ end
 
 %%%%comments!!!
 function xy = getxy(~,~)
-global Tracked plottingON psettings imgsize 
+global Tracked plottingON psettings imgsize ImageDetails framesForDir
     
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
     plottingON=1;
     end
     
-    t=length(Tracked);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     t=length(Tracked);
+    t = strcmp(framesForDir,ImageDetails.Frame);
+t = find(t==1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     
 framesThatMustBeTracked = psettings.framesThatMustBeTracked;
         PX = Tracked{framesThatMustBeTracked(1)}.Cellz.PixelIdxList;
@@ -1953,6 +1960,8 @@ framesThatMustBeTracked = psettings.framesThatMustBeTracked;
             end
         makeIMG = makeIMG(1,:)&makeIMG(2,:);
         makeIMGidx = find(makeIMG==1);
+        
+        
         
          PXX = Tracked{t}.Cellz.PixelIdxList;
     PX = PXX(makeIMG);
@@ -1980,12 +1989,20 @@ framesThatMustBeTracked = psettings.framesThatMustBeTracked;
 end
 function dispxy(xy)    
 global framesForDir displaycomments Tracked
-t = length(Tracked);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     t=length(Tracked);
+    t = strcmp(framesForDir,ImageDetails.Frame);
+t = find(t==1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    
 for i = 1:size(xy,1)
 text(xy(i,1)+1,xy(i,2)+1,num2str(i),'Color',[0 0 0],'FontSize',12);hold on
 text(xy(i,1),xy(i,2),num2str(i),'Color',[1 1 0],'FontSize',12);hold on
 end
-
+    
+    t = length(Tracked);
    xxyy=xy;
    xxyy(:,1) = xxyy(:,1)+10;
    xxyy(:,2) = xxyy(:,2)+10;
@@ -2225,6 +2242,7 @@ end
 function comment_Callback(~,~)
 global displaycomments Tracked
 
+    
     fnames = fieldnames(Tracked{length(Tracked)});
     if sum(strcmp(fnames,'comments'))
         displaycomments =1;

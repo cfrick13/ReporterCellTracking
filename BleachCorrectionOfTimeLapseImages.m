@@ -20,8 +20,8 @@ cd(primarydir)
 primarylist = dir('*_s*');
 primarynames = {primarylist.name};
 primaryone = char(primarynames{1});
-    cd(strcat(primarydir,'\',primaryone))
-    finaldir = dir('*flat\');
+    cd(strcat(primarydir,'/',primaryone))
+    finaldir = dir('*flat/');
     finaldirnames = {finaldir.name};
     
     channelinputs =channelregexpmaker(channelstoinput);
@@ -38,10 +38,10 @@ for i = 1:length(finaldirnames);
     cycle=1;
     for subdir=primarynames
     subdirname = char(subdir);
-    cd(strcat(primarydir,'\',subdirname))
-    SAVdir = strcat(primarydir,'\',subdirname,'\tiffs\');
+    cd(strcat(primarydir,'/',subdirname))
+    SAVdir = strcat(primarydir,'/',subdirname,'/tiffs/');
     finaldirname = char(finaldirnames{i});
-    cd (strcat(primarydir,'\',subdirname,'\',finaldirname));
+    cd (strcat(primarydir,'/',subdirname,'/',finaldirname));
     filelist = dir('*.tif*');
         if ~isempty(filelist)
             filenames = {filelist.name};
@@ -58,10 +58,10 @@ for i = 1:length(finaldirnames);
     
     for subdir=primarynames
     subdirname = char(subdir);
-    cd(strcat(primarydir,'\',subdirname))
-    SAVdir = strcat(primarydir,'\',subdirname,'\tiffs\');
+    cd(strcat(primarydir,'/',subdirname))
+    SAVdir = strcat(primarydir,'/',subdirname,'/tiffs/');
     finaldirname = char(finaldirnames{i});
-    cd (strcat(primarydir,'\',subdirname,'\',finaldirname));
+    cd (strcat(primarydir,'/',subdirname,'/',finaldirname));
     filelist = dir('*.tif*');
         if ~isempty(filelist)
             filenames = {filelist.name};

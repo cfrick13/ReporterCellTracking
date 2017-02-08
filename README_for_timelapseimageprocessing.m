@@ -20,7 +20,9 @@ A = 'D:\Frick\';
 
 %for loop iterating through subdirectories
 % for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
-for BB = {'2017_01_30 plate'};
+% for BB = {'2017_01_30 plate exp2','2017_01_27 plate exp1','2017_01_31 plate exp1'};
+% for BB = {'2017_01_27 plate exp1','2017_01_31 plate exp1'};
+for BB = {'2017_01_30 plate exp1'};
 B = BB{1};
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % renamemCherrytoMkate(A,B)
@@ -29,14 +31,19 @@ B = BB{1};
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if strcmp(B,'2017_01_22 plate')
+if      strcmp(B,'2017_01_22 plate exp1')
     BACKGROUND = [41:45];
-elseif strcmp(B,'2017_01_25 plate')
+elseif strcmp(B,'2017_01_25 plate exp1')
     BACKGROUND = [38:42];
-elseif  strcmp(B,'2017_01_27 plate')
+elseif  strcmp(B,'2017_01_27 plate exp1')
     BACKGROUND = [91 92 93 94 96];
-elseif  strcmp(B,'2017_01_30 plate')
+elseif  strcmp(B,'2017_01_30 plate exp1')
     BACKGROUND = [17:21];
+    dontsegement = [1:21];
+elseif  strcmp(B,'2017_01_30 plate exp2')
+    BACKGROUND = [17:21];
+elseif  strcmp(B,'2017_01_31 plate exp1')
+    BACKGROUND = [1:10];
 end
 
 
@@ -55,7 +62,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SegmentationOfTimeLapseImages(A,B);
+SegmentationOfTimeLapseImages(A,B,dontsegement);
 % renameDirectoryItems
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

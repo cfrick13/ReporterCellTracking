@@ -4,7 +4,8 @@ function BackgroundAndFlatfieldCorrectionOfTimeLapseImages(~,datename,channelsto
 % datename = '2015_12_15 smad3g smFISH';
 C = datename;
 E={datename}; %beginning of file name for saving
-channelinputs =channelregexpmaker(channelstoinput);
+
+
 
 
  mdir = mfilename('fullpath');
@@ -18,10 +19,26 @@ folderz = dir('*exp*');
 folderzname = {folderz.name};
 dirlog = [folderz.isdir];
 explist = folderzname(dirlog);
+expname = char(explist);
+[a,b] = regexp(expname,'exp[0-9]');
+expnum = expname(a:b);
+dateofexp = expname(1:10);
+
+
+metadir = strcat(parentdir,'Tracking/Export');
+cd(metadir)
+filelist  = dir(strcat('*',dateofexp,'*',expnum,'*'));
+metadatafile = char(filelist.name);
+A = load(metadatafile);
+
+dim = A.dimensions;
+% channelstoinput = A.channelNames; (DIC doesn't work)
+channelinputs =channelregexpmaker(channelstoinput);
+
 
 for expdircell = explist
     expdirname = char(expdircell);
-    DIRone = strcat(parentdir,datename,'\',expdirname);
+    DIRone = strcat(parentdir,datename,'/',expdirname);
     cd(DIRone);
     dirlist = dir('*.tif');
     [~,~,~,ScenesListed] = regexp([dirlist.name],'s[0-9]+');
@@ -32,8 +49,8 @@ for expdircell = explist
     channelList = unique(channelsListed);
 
     cd .. 
-    mkdir(strcat(parentdir,datename,'\flatfield_corrected'));
-    cd (strcat(parentdir,datename,'\flatfield_corrected'));
+    mkdir(strcat(parentdir,datename,'/flatfield_corrected'));
+    cd (strcat(parentdir,datename,'/flatfield_corrected'));
     
     
     
@@ -48,10 +65,10 @@ for expdircell = explist
         for channel = channelList %cycle through one channel at a time
             chan = char(channel);
             
-            normBkgimgMat = zeros(512,512,length(timeList));
+            normBkgimgMat = zeros(dim(1),dim(2),length(timeList));
             parfor i = 1:length(timeList)
                 tpoints = timeList{i};
-                bkimg = medianBKG(BACKGROUND,tpoints,chan); %load background images and compile into one median image
+                bkimg = medianBKG(BACKGROUND,tpoints,chan,dim); %load background images and compile into one median image
                 bkShape = reshape(bkimg,[1 size(bkimg,2).*size(bkimg,1)]);
                 bkSort = sort(bkShape(~isnan(bkShape)));
                 normalizedBkgimg = (double(bkimg)./mean([bkSort(round(length(bkSort).*0.9999)) bkSort(round(length(bkSort).*0.99999))]));
@@ -71,7 +88,7 @@ for expdircell = explist
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %make folders for each scene
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    cd (strcat(parentdir,datename,'\flatfield_corrected')); 
+    cd (strcat(parentdir,datename,'/flatfield_corrected')); 
     for scenedir = sceneList
         scene = scenedir{1};
     %     sceneN = str2num(scene(2:end));
@@ -118,17 +135,17 @@ for expdircell = explist
                     chanstruct = chan;
                     chanstruct(a) = [];
                     tlog = strcmp(timeList,tpoints);
-                    i = find(tlog==1);
+%                     i = find(tlog==1);
         %         bkimg = medianBKG(BACKGROUND,tpoints,chan); %load background images and compile into one median image
         %         bkShape = reshape(bkimg,[1 size(bkimg,2).*size(bkimg,1)]);
         %         bkSort = sort(bkShape(~isnan(bkShape)));
         %         normalizedBkgimg = (double(bkimg)./mean([bkSort(round(length(bkSort).*0.9999)) bkSort(round(length(bkSort).*0.99999))]));
                 normBkgimgMat = bkgimgstruct.(chanstruct);
-                normalizedBkgimg = normBkgimgMat(:,:,i);
+                normalizedBkgimg = normBkgimgMat(:,:,tlog);
 
                 flat = uint16(double(img)./normalizedBkgimg); %flatten the experimental image with the background image
                 savename = strcat(E,'_flat_',scene,'_',tpoint,'_',chan,'.tif');
-                SAVdir = strcat(parentdir,datename,'\flatfield_corrected\',E{1},'_scene_',scene);
+                SAVdir = strcat(parentdir,datename,'/flatfield_corrected/',E{1},'_scene_',scene);
                 savethatimage(savename,SAVdir,flat,DIRflat,j);
 %                 stophere=1;
             end
@@ -137,16 +154,16 @@ for expdircell = explist
 end
 
     % lineageyo(A,B);
-    % cd('D:\Users\zeiss\Documents\MATLAB')
+    % cd('D:/Users/zeiss/Documents/MATLAB')
     % % bleachcorrection(A,B)
     % bleachcorrectionNew(A,B)
-    % cd('D:\Users\zeiss\Documents\MATLAB')
+    % cd('D:/Users/zeiss/Documents/MATLAB')
     % toughsegmentationforstacks(A,B)
 end
 
 
-function bkimg = medianBKG(BACKGROUND,tpoints,chan)
-    bkimgs = zeros(512,512,length(BACKGROUND));
+function bkimg = medianBKG(BACKGROUND,tpoints,chan,dim)
+    bkimgs = zeros(dim(1),dim(2),length(BACKGROUND));
     i = 1;
     for scenenumber = BACKGROUND
     scene = scenestring(scenenumber);

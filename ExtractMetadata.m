@@ -72,12 +72,21 @@ end
 % disp(timeVec./60)
 
 
+
+
+for i = 1:channelCount
+    cN = omeMeta.getChannelName(0,i-1);
+    channelNames{i} = char(cN);
+end
+
+
 datastruct  = struct();
 
 datastruct.imageDimensions = dimensions;
 datastruct.timeCount= timeCount;
 datastruct.channelCount = channelCount;
 datastruct.sceneCount = imageCount; 
+datastruct.channelNames = channelNames;
 
 
 [~,b] = regexp(FileName,'exp[0-9]');

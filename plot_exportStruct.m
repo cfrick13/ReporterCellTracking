@@ -26,8 +26,8 @@ end
 
 
 timeInterval = 4; %minutes
-stimulationFrame = 10; %frame immediately preceeding stimulation
-smadTracesString = 'medianNucEGFP'; %value to plot
+stimulationFrame = 10; %framuie immediately preceeding stimulation
+smadTracesString = 'medianuiNucEGFP'; %value to plot
 reporterTracesString = 'totalNucRFP';
 
 numberOfFrames = size(timeVec,2);
