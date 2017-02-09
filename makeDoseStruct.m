@@ -95,6 +95,7 @@ dmat = cellfun(@isempty,d);
 disp(dmat)
 indices = ~dmat;
 [dosestruct(indices).dose] = deal(doses(j));
+[dosestruct(indices).dosestr] = deal(num2str(doses(j)));
 end
 
 
@@ -153,6 +154,7 @@ dmat = cellfun(@isempty,d);
 disp(dmat)
 indices = ~dmat;
 [dosestruct(indices).tgfFrame] = deal(tgfFrame(j));
+[dosestruct(indices).tgfFramestr] = deal(num2str(tgfFrame(j)));
 end
 
 

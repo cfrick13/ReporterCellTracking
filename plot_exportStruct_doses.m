@@ -1,5 +1,8 @@
 function plot_exportStruct_doses
 close all
+
+%determine the location of the matlab function and establish export
+%directory in relation to that filepath
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
         if isempty(b)
@@ -9,10 +12,14 @@ mdir = mfilename('fullpath');
     exportdir = strcat(parentdir,'Tracking/Export');
 cd(exportdir);
 
+
+%load the exported tracking structure
 FileName = uigetfile('*export.mat');%choose file to load
 load(FileName)
 
-%load metadata
+
+%load metadata associated with the experiment (requires manual input if
+%there is ambiguity
 [a,~] = regexp(FileName,'_tracking');
 datequery = strcat(FileName(1:a-1),'*Data.mat');
 cd(exportdir)
@@ -24,6 +31,8 @@ else
     load(filename)
 end
 
+
+%load information regarding doses and scenes and tgfbeta addition
 [a,~] = regexp(FileName,'_tracking');
 datequery = strcat(FileName(1:a-1),'*DoseAndScene*');
 cd(exportdir)
@@ -38,80 +47,65 @@ filelist = dir(datequery);
     %exportstruct
     %datastruct
     %dosestruct
-scenestr = 'scene'; %choose which field based upon which each cell trace will get colored
+    
+    
+    
+ %choose which field based upon which each cell trace will get colored    
+scenestr = 'scene';
 sceneListArray = vertcat({exportStruct.(scenestr)});
 sceneList = unique(sceneListArray);
-
 sceneListArrayTwo = vertcat({dosestruct.(scenestr)});
 
+%combine the exportStruct information with dosesstruct information
 for i=1:length(sceneList)
     sceneChoice=sceneList{i};
-    [~,~,~,d] =  regexp(sceneListArray,sceneChoice);
-    dmat = cellfun(@isempty,d);
-    disp(dmat)
-    indices = ~dmat;
-    
-    
-    [~,~,~,d] =  regexp(sceneListArrayTwo,sceneChoice);
-    dmat = cellfun(@isempty,d);
-    disp(dmat)
-    indicestwo = ~dmat;
+    indices = strcmp(sceneListArray,sceneChoice);
+    indicestwo = strcmp(sceneListArrayTwo,sceneChoice);
+
 
     dose = dosestruct(indicestwo).dose;
     frame = dosestruct(indicestwo).tgfFrame;
     
+    dosestr = dosestruct(indicestwo).dosestr;
+    framestr = dosestruct(indicestwo).tgfFramestr;
+    
     
     [exportStruct(indices).dose] = deal(dose);
     [exportStruct(indices).frame] = deal(frame);
+    [exportStruct(indices).dosestr] = deal(dosestr);
+    [exportStruct(indices).framestr] = deal(framestr);
 end
 
-    
+doseListArray = vertcat({exportStruct.dosestr});
+doseList = unique(doseListArray);
     
 
     
-
-timeInterval = 4; %minutes
-stimulationFrame = 10; %framuie immediately preceeding stimulation
-smadTracesString = 'medianNucEGFP'; %value to plot
+%determine details needed for plotting such as when Tgfbeta is added, etc
+stimulationFrame = exportStruct(1).frame;
+smadTracesString = 'totalsNucEGFP'; %value to plot
 reporterTracesString = 'totalNucRFP';
-
 numberOfFrames = size(timeVec,2);
-finalFrame = size(timeVec,2); 
-finalFrame = 40; %choose which you want to be your final frame
+finalFrame = numberOfFrames;
 
 
     
-coloringChoice = 'dose'; %choose which field based upon which each cell trace will get colored
+coloringChoice = 'dosestr'; %choose which field based upon which each cell trace will get colored
+
+%establish the color map for plotting
 coloringArray = vertcat({exportStruct.(coloringChoice)});
-
-% indicesChoiceArray = {'s01','s02','s03','s04','s05','s06'};
-% indicesChoice =channelregexpmaker(indicesChoiceArray);
-BACKGROUND = horzcat(1:17,22:31);
-    for i = 1:length(BACKGROUND)
-        bkstr = num2str(BACKGROUND(i)); 
-        if length(bkstr)>1
-            bkarray{i} = strcat('s',bkstr);
-        else
-            bkarray{i} = strcat('s0',bkstr); 
-        end
-    end
-indicesChoice =channelregexpmaker(bkarray);
-
-[~,~,~,d] =  regexp(coloringArray,indicesChoice);
-dmat = cellfun(@isempty,d);
-indices = ~dmat;
+coloringList = unique(coloringArray);
+indices = true(1,length(exportStruct));
     coloringArrayTrunc = vertcat({exportStruct(indices).(coloringChoice)});
     uniqueColoring = unique(coloringArrayTrunc);
-%     cmap = colormap(viridis(length(uniqueColoring)));
-    cmap = colormap(parula(length(uniqueColoring).*2)./2);
-%     cmap(1,:) = [0 0 0];
-%     cmap(2,:) = [0 0.5 0.2];
-%     cmap(3,:) = [0.5 0.0 0.2];
+    figure(1)
+    cmap = colormap(parula(length(coloringList).*2));
+    close 1
+    cmap = cmap./2; %darken the cmap
 disp(cmap)
 
 
-
-colorNames = {'k','r','b','g','c'};
+%assign a color array using the created colormap based on the choices above
 colormapMatrix = zeros(length(coloringArrayTrunc),size(cmap,2));
 for i=1:length(coloringArrayTrunc)
    cA = coloringArrayTrunc{i};
@@ -124,20 +118,26 @@ end
 %need to determine the number of scenes present and choose the time vector
 %depending on the scene from which it was imaged
 %THIS WORKS FOR NOW BUT NEEDS TO BE CHANGED
-
 timeVector = ceil(timeVec(1,:));
-setTequalZeroToStimulation = timeVector(stimulationFrame);
-xtickTimeVector = timeVector - setTequalZeroToStimulation;
 numberOfCells = length(indices);
 timeMatrix = zeros(numberOfCells,finalFrame);
-for i=1:length(coloringArrayTrunc)
-   cA = coloringArrayTrunc{i};
-   idx = strcmp(uniqueColoring,cA);
-   timeMatrix(i,:) = timeVec(idx,1:finalFrame)-setTequalZeroToStimulation;  
+    coloringArray = vertcat({exportStruct.(coloringChoice)});
+    coloringList = unique(coloringArray);
+    coloringArrayTrunc = vertcat({exportStruct(indices).(coloringChoice)});
+for i=1:numberOfCells
+    sceneChoice=exportStruct(i).scene;
+    idx = strcmp(sceneListArray,sceneChoice);
+    idxtwo = strcmp(sceneListArrayTwo,sceneChoice);
+    
+   stimulationFrame = dosestruct(idxtwo).tgfFrame;
+   timeMatrix(i,:) = timeVec(idxtwo,1:finalFrame)-timeVec(1,stimulationFrame);  
 end
+% setTequalZeroToStimulation = timeVector(stimulationFrame);
+% xtickTimeVector = timeVector - setTequalZeroToStimulation;
 
 
 
+indices = true(1,length(exportStruct));
 %function to exract the cell traces, normalized and not
 [smadCellTracesNorm,smadCellTraces] = extractTraces(exportStruct,indices,smadTracesString,finalFrame,stimulationFrame);
 [reporterCellTracesNorm,reporterCellTraces] = extractTraces(exportStruct,indices,reporterTracesString,finalFrame,stimulationFrame);
@@ -149,43 +149,52 @@ end
 % timeMatrix = timeOnes*timeVector;
 
 
+
+
 f = figure(3);
-    subplot(2,2,1);
-        p = plot(timeMatrix',smadCellTraces','LineWidth',1.5,'Color',[0. 0 0]);
-%             set(p, {'color'}, num2cell(colormapMatrix,2));
-            xlim([-30 200])
+for i=1:length(doseList)
+    doseChoice = doseList{i};
+    idx = strcmp(doseListArray,doseChoice);
+    subplot(2,length(doseList),i);
+        p = plot(timeMatrix(idx,:)',smadCellTraces(idx,:)','LineWidth',1.5,'Color',[0. 0 0]);
+            set(p, {'color'}, num2cell(colormapMatrix(idx,:),2));
+%             xlim([-30 200])
+            xlim([-30 120])
             xlabel('minutes');
             ylabel('total nuclear fluorescence (au)')
             title('Level of endogenous nuclear NG-Smad3');
             h=p.Parent;
             h.XTick = [-30:30:400];
-    subplot(2,2,2);
-        p = plot(timeMatrix',smadCellTracesNorm','LineWidth',1.5,'Color',[0 0. 0]);
-%             set(p, {'color'}, num2cell(colormapMatrix,2));
-            xlim([-30 200])
+            ylim([0 max(max(smadCellTraces))])
+%             ylim([0 5000])
+    subplot(2,length(doseList),i+length(doseList));
+        p = plot(timeMatrix(idx,:)',smadCellTracesNorm(idx,:)','LineWidth',1.5,'Color',[0 0. 0]);
+            set(p, {'color'}, num2cell(colormapMatrix(idx,:),2));
+%             xlim([-30 200])
+            xlim([-30 120])
             ylim([0 5])
             xlabel('minutes');
             ylabel(strcat('fold-change in total nuclear fluorescence'))
             h=p.Parent;
             h.XTick = [-30:30:400];
             title('Fold-change of endogenous nuclear NG-Smad3')
-            t = text(0,0,strcat('N=',num2str(numberOfCells)));
+            t = text(0,0,strcat('N=',num2str(sum(idx))));
             t.Units='normalized';
             t.Position = [0.95 0.9];
             t.HorizontalAlignment = 'right';
             t.FontSize = 12;
-                t = text(0,0,strcat('2.5 ng/mL Tgf'));
+                t = text(0,0,strcat(doseChoice,' ng/mL Tgf'));
                 t.Units='normalized';
                 t.Position = [0.95 0.85];
                 t.HorizontalAlignment = 'right';
                 t.FontSize = 12;
-            
+end
             
 %     subplot(2,2,3);
 %     scatter(smadCellTraces(:,1),reporterCellTraces(:,1));
 %     subplot(2,2,4);
 %     scatter(smadCellTraces(:,40),reporterCellTraces(:,40));
-f.Position = [182 129 1400 1100];
+f.Position = [182 510 2253 719];
 
 for h =f.Children'
     h.FontSize = 14;
@@ -221,7 +230,7 @@ cellTracesFull = vertcat(exportStruct(indices).(xTracesString));
 cellTraces = cellTracesFull(:,1:finalFrame); %88x50 [needs to be 50x88]
 
 % normalize by basal values
-basalVector = cellTraces(:,stimulationFrame); %88x1;
+basalVector = nanmedian(cellTraces(:,stimulationFrame-3:stimulationFrame),2);
 invBasalVector = 1./(basalVector); %88x1 [and needs to be 88x88]
 invBasalMatrix = ones(size(cellTraces,2),1)*invBasalVector';
 cellTracesNorm = cellTraces.*(invBasalMatrix');

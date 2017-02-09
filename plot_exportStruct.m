@@ -81,7 +81,7 @@ finalFrame = 40; %choose which you want to be your final frame
 
 
     
-coloringChoice = 'dose'; %choose which field based upon which each cell trace will get colored
+coloringChoice = 'scene'; %choose which field based upon which each cell trace will get colored
 coloringArray = vertcat({exportStruct.(coloringChoice)});
 
 % indicesChoiceArray = {'s01','s02','s03','s04','s05','s06'};
