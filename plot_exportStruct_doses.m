@@ -12,7 +12,7 @@ mdir = mfilename('fullpath');
     exportdir = strcat(parentdir,'Tracking/Export');
 cd(exportdir);
 
-
+exportdirz = exportdir;
 %load the exported tracking structure
 FileName = uigetfile('*export.mat');%choose file to load
 load(FileName)
@@ -21,7 +21,7 @@ load(FileName)
 %load metadata associated with the experiment (requires manual input if
 %there is ambiguity
 [a,~] = regexp(FileName,'_tracking');
-datequery = strcat(FileName(1:a-1),'*Data.mat');
+datequery = strcat(FileName(1:a-1),'*metaData.mat');
 cd(exportdir)
 filelist = dir(datequery);
 if length({filelist.name}) ==1
@@ -35,7 +35,7 @@ end
 %load information regarding doses and scenes and tgfbeta addition
 [a,~] = regexp(FileName,'_tracking');
 datequery = strcat(FileName(1:a-1),'*DoseAndScene*');
-cd(exportdir)
+cd(exportdirz)
 filelist = dir(datequery);
     if isempty(filelist)
        dosestruct = makeDoseStruct; %run function to make doseStruct 
@@ -82,15 +82,18 @@ doseList = unique(doseListArray);
 
     
 %determine details needed for plotting such as when Tgfbeta is added, etc
+%medianSmadbkg
+
 stimulationFrame = exportStruct(1).frame;
-smadTracesString = 'totalsNucEGFP'; %value to plot
+smadTracesString = 'medianNucEGFP'; %value to plot
+% smadTracesString = 'medianSmadbkg';
 reporterTracesString = 'totalNucRFP';
 numberOfFrames = size(timeVec,2);
 finalFrame = numberOfFrames;
 
 
     
-coloringChoice = 'dosestr'; %choose which field based upon which each cell trace will get colored
+coloringChoice = 'scene'; %choose which field based upon which each cell trace will get colored
 
 %establish the color map for plotting
 coloringArray = vertcat({exportStruct.(coloringChoice)});

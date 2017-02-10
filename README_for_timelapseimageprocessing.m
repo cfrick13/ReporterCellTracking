@@ -22,7 +22,7 @@ A = 'D:\Frick\';
 % for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
 % for BB = {'2017_01_30 plate exp2','2017_01_27 plate exp1','2017_01_31 plate exp1'};
 % for BB = {'2017_01_27 plate exp1','2017_01_31 plate exp1'};
-for BB = {'2017_01_30 plate exp1'};
+for BB = {'2017_01_30 plate exp2'};
 B = BB{1};
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % renamemCherrytoMkate(A,B)
@@ -42,6 +42,7 @@ elseif  strcmp(B,'2017_01_30 plate exp1')
     dontsegement = [1:21];
 elseif  strcmp(B,'2017_01_30 plate exp2')
     BACKGROUND = [17:21];
+    dontsegement = [17:21];
 elseif  strcmp(B,'2017_01_31 plate exp1')
     BACKGROUND = [1:10];
 end

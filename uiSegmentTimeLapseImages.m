@@ -38,7 +38,7 @@ mdir = mfilename('fullpath');
 cd(parentdir)
 denoisepath = strcat(parentdir,'Tracking/coherencefilter_version5b/');
 addpath(denoisepath);
-exportdir = strcat(parentdir,'Tracking\Export\');
+exportdir = strcat(parentdir,'Tracking/Export/');
 
 
 %set parent directory
@@ -63,7 +63,8 @@ SceneList = cellfun(@(x) x{1},dcell,'UniformOutput',0);
 %determine date of experiment
 cd (subdirname)
 [a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
+[c,d] = regexp(A,'exp[0-9]');
+ExpDate = A(a:b+6);OGExpDate = A(a:d); [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
 
 %determine the number of time frames per scene
 folderlist = dir(strcat('*',SceneList{1},'*'));
@@ -249,9 +250,9 @@ end
 
 %parameter structure
 pStruct = struct();
-parameterDefaults = [106 106 40;...
-                    0.5 0.5 1.3;...
-                    20 20 5;...
+parameterDefaults = [106 100 40;...
+                    0.5 1 1;...
+                    20 15 2;...
                     1 1 1];
                     
 parameterStrings = {'nucDiameter','threshFactor','sigmaScaledToParticle','noparametercurrently'};
@@ -263,6 +264,9 @@ for p = 1:length(parameterStrings)
         pStruct.(cString).(pString) = parameterDefaults(p,c); 
     end
 end
+
+loadSegmentParameters
+
 % str = 'nucDiameter';
 % channel = 'mKate';
 % val.(channel).(str) = 60;
@@ -298,8 +302,34 @@ set(f,'KeyPressFcn',@keypress);
 end
 
 
+function loadSegmentParameters
+global pStruct exportdir OGExpDate
+
+cd(exportdir)
+filename = strcat('*',OGExpDate,'*segmentParameters*');
+
+filelist = dir(filename);
+if ~isempty(filelist)
+loadname = char((filelist.name));
+load(loadname) %load pstruct values
+end
+
+    
+
+end
+
+function saveSomethingCallback(~,~)
+global pStruct exportdir OGExpDate
+
+cd(exportdir)
+filename = strcat('*',OGExpDate,'*metaData*')
+filelist = dir(filename)
+savenamebase = char((filelist.name));
+savename = strcat(OGExpDate,'-segmentParameters.mat');
+save(savename,'pStruct');
 
 
+end
 
 
 
@@ -311,8 +341,8 @@ global pStruct ImageDetails sliderOne sliderOneTxt
 sliderx = 0.72;
 % slidery = 0.6;
 sliderw = 0.1;
-sliderh = 0.05;
-slidertextw = 0.05;
+sliderh = 0.02;
+slidertextw = 0.1;
 sliderspace = 0.1;
 
 
@@ -433,10 +463,14 @@ function sliderOneAdjust(source,~)
 end
 
 
-function plotTestOut(testOut)
+function plotTestOut(testOut,channel)
     global subaxestwo
 
-    stringsToTest = {'Ih','gradmag','gradmag2','rawMinusLP'};
+    if strcmp(channel,'mKate')
+    stringsToTest = {'Ie','Ihcf','gradmag2','Ieg'};
+    else
+    stringsToTest = {'Ie','Ih','Ihc','Ihcd'};
+    end
     for i = 1:length(subaxestwo)
     axes(subaxestwo(i))
     str = stringsToTest{i};
@@ -476,6 +510,7 @@ finalerode=2;
 % prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
 
 %start
+IfFinal = zeros(size(FinalImage));
 for frames = 1:size(FinalImage,3)
 %Smooth Image using Anisotropic Diffusion
 % Options.Scheme :  The numerical diffusion scheme used
@@ -536,7 +571,9 @@ imgRawDenoised = imgRaw;
     logvecpre = vecOG; logvecpre(logvecpre==0)=[];
     logvec = log10(logvecpre);
     vec = logvec;
-    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:prctile(vec,99));
+    lowperc = prctile(vec,1);
+    highperc = prctile(vec,100);
+    [numbers,bincenters] = hist(vec,lowperc:(highperc-lowperc)/1000:highperc);
     numbersone = medfilt1(numbers, 10); %smooths curve
     numberstwo = medfilt1(numbersone, 100); %smooths curve
     fraction = numberstwo./sum(numberstwo);
@@ -544,7 +581,7 @@ imgRawDenoised = imgRaw;
         %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
         %%%%%%%%%%%%%%%%%%%% histogram
         left=0.5*mf;
-        slopedown=0.1*mf;
+        slopedown=0.4*mf;
         %%%%%%%%%%%%%%%%%%%%%
     leftedge = find(fraction > left,1,'first');
     insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
@@ -561,30 +598,27 @@ imgRawDenoised = imgRaw;
     subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
     subzero = (subtracted<0);
     Ih = ~subzero;
-
-%     Ihd = imdilate(Ih,strel('disk',1));
-%     Ihdc = imclose(Ihd,strel('disk',2));
-%     Ihdcf = imfill(Ihdc,'holes');
-%     Im = Ihdcf;
-    Ihc = imclose(Ih,strel('disk',4));
+    Ihe = imerode(Ih,strel('disk',2));
+    Ihed = imdilate(Ihe,strel('disk',2));
+    Ihc = imclose(Ihed,strel('disk',2));
     Ihcf = imfill(Ihc,'holes');
     Im=Ihcf;
+
     
 
     
     
 %%%%% this is the ultimate addition for watershed segmentation!!!
     see = strel('disk',1);
-    seo = strel('disk',8);
     Isum = Im;
     Ier = Isum;
 %     figure(2)
-    for i=1:(nucDiameter/2)
+    for i=1:round((nucDiameter/2))
         Ier = imerode(Ier,see);
         Isum = Isum+Ier;
     end
     Isum(Isum>nucDiameter) = nucDiameter;
-     waterBoundary = imerode(Im,strel('disk',1));
+    waterBoundary = imerode(Im,strel('disk',1));
     
     
     
@@ -602,23 +636,19 @@ gradmag = sqrt(Ix.^2 + Iy.^2);
 
 %Smoothing
 I = Isum;
-se = strel('disk', 10);
+width = round(nucDiameter./5);
+se = strel('disk', width);
 Io = imopen(I, se);
-% se = strel('disk', ceil(nucDiameter./6));
-Ie = imerode(I, se);
+Ie = imerode(Io, se);
 Ieg = gaussianBlurz(Ie,sigma./2,kernelgsize);
-Iobr = imreconstruct(Ie, I);
-Iobrd = imdilate(Iobr, se);
-Iobrcbr = imreconstruct(imcomplement(Iobrd), imcomplement(Iobr));
-Iobrcbr = imcomplement(Iobrcbr);
+%     width = round(nucDiameter./10);
+%     Ime = imerode(Ihcf,strel('disk',width));
+%     Imeo = imopen(Ime,strel('disk',width));
+%     Ieg(~Imeo)=0;
 fgm = imregionalmax(Ieg);
-% fgm = imregionalmax(Iobrcbr);
-se2 = strel(ones(2,2));
-fgm2 = imclose(fgm, se2);
-fgm3 = imerode(fgm2, se2);
-% fgm4 = bwareaopen(fgm3, 2);
-fgm4 = imdilate(fgm,strel('disk',5));
-% bw = imbinarize(Iobrcbr);
+width = round(nucDiameter./4);
+fgm4 = imdilate(fgm,strel('disk',width));
+% fgm4 =fgm;
 bw = Im;
 D = bwdist(bw);
 DL = watershed(D,4);
@@ -646,7 +676,6 @@ If = L>1;
 
     
     time = tsn{frames};
-    tim = time(2:end);
     IfFinal(:,:,frames)=If;
     
        if frames==1
@@ -656,11 +685,11 @@ If = L>1;
         testOut.rawMinusLP = rawMinusLP;
         testOut.rawMinusLPScaled = rawMinusLPScaled;
         testOut.Ih = Ih;
-        testOut.Ihc = Ihc;
+        testOut.Ihcf = Ihcf;
         testOut.Im = Im;
-%         testOut.gausshed = gausshed;
-%         testOut.imgt = imgt;
-%         testOut.Isum = Isum;
+        testOut.Ieg = Ieg;
+        testOut.fgm4 = fgm4;
+        testOut.Ie = Ie;
         testOut.L = L;
         testOut.gradmag = gradmag;
         testOut.gradmag2 = gradmag2;
@@ -819,7 +848,15 @@ for frames = 1:size(FinalImage,3)
         testOut.Ih = Ih;
         testOut.Ihc = Ihc;
         testOut.Im = Im;
+        testOut.Ihcd = Ihcd;
         testOut.L = zeros([512 512]);
+        testOut.gradmag = zeros(size(img));
+        testOut.gradmag2 =  zeros(size(img));
+        testOut.Ie = zeros(size(img));
+        testOut.Ihcf = zeros(size(img));
+        testOut.Ieg = zeros(size(img));
+%         testOut.waterBoundary = waterBoundary;
+
        end
     
 end
@@ -3920,7 +3957,7 @@ imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
         ff = dir(strcat('*',ImageDetails.Channel,'*'));
 %         ff = dir(strcat(ImageDetails.Channel,'*'));
 %         channelspacing = round(linspace(1,length(framesForDir),9));
-        channelspacing = [1 2 3 4 40 41 42 44 45];
+        channelspacing = [1 4 9 12 15 18 20 22 26];
 
         channelimgstack = zeros([imgsize(1) imgsize(2) length(channelspacing)]);
         for i = 1:length(channelspacing)
@@ -3958,7 +3995,7 @@ end
 displayImageFunct(IfStack,channelimgstack,channelspacing);
 updateSliders
 
-plotTestOut(testOut)
+plotTestOut(testOut,channel)
 
 
 

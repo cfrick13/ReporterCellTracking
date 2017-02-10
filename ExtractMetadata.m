@@ -8,8 +8,9 @@ mdir = mfilename('fullpath');
         end
     parentdir = mdir(1:b(end-1));
 cd(parentdir)
-denoisepath = strcat(parentdir,'Tracking/coherencefilter_version5b/');
-addpath(denoisepath);
+readerpath = strcat(parentdir,'Tracking/bfmatlab/');
+% denoisepath = strcat(parentdir,'Tracking/coherencefilter_version5b/');
+addpath(readerpath);
 exportdir = strcat(parentdir,'Tracking/Export/');
 
 cd(parentdir)

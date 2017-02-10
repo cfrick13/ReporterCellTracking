@@ -1,4 +1,4 @@
-function dosestruct = makeDoseStruct
+function dosestruct = makeDoseStructFromXLS
 close all
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
@@ -9,16 +9,28 @@ mdir = mfilename('fullpath');
     exportdirz = strcat(parentdir,'Tracking/Export/');
 cd(exportdirz);
 
+
+
 FileName = uigetfile('*metaData.mat');%choose file to load
+load(FileName)
 % load(FileName)
 
-
-filelist = dir(FileName);
+[~,b] = regexp(FileName,'exp[0-9]');
+queryname = strcat(FileName(1:b),'*experimentInfo.xlsx');
+filelist = dir(queryname);
 if length({filelist.name}) ==1
-    load(char(filelist.name));
+    [num,txt] = xlsread(char(filelist.name));
 else
-    filename = uigetfile();
-    load(filename)
+    error('you need to make a spreadsheet with the following information')
+    
+% disp(raw)
+%     'NumberOfDoses'    'Doses'     'Scenes'    'NumOfTgfAdditions'    'TgfFrames'    'Scenes'    'FlatfieldReference'
+%     [            5]    [2.4000]    '1:6'       [                1]    [        8]    '1:31'      '17:21'             
+%     [          NaN]    [0.1400]    '7:11'      [              NaN]    [      NaN]    [   NaN]    [               NaN]
+%     [          NaN]    [0.0700]    '27:31'     [              NaN]    [      NaN]    [   NaN]    [               NaN]
+%     [          NaN]    [0.0400]    '12:16'     [              NaN]    [      NaN]    [   NaN]    [               NaN]
+%     [          NaN]    [     0]    '17:26'     [              NaN]    [      NaN]    [   NaN]    [               NaN]
+    
 end
 
 
@@ -32,40 +44,18 @@ for i=1:numberOfScenes
 end
 
 
-%input the number of doses
-prompt = {'number of doses'};
-dlg_title = 'enter the number of doses used in this experiment...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-numberOfDoses = str2num(inputdlgOutput{1});
+% % % % % % % % % % % % %input the number of doses
+numberOfDoses = num(1,1);
 
-
-%input the Tgfbeta concentrations of each dose
-dosepromptarray = cell(1,numberOfDoses);
-for i=1:numberOfDoses
-    dosepromptarray{i} = strcat('dose',num2str(i));
-end
-prompt = dosepromptarray;
-dlg_title = 'what are the doses?...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-doses = cellfun(@str2num,inputdlgOutput,'UniformOutput',1);
-
-
-
-
-
+% % % % % % % %input the Tgfbeta concentrations of each dose
+doses = num(1:numberOfDoses,2);
 
 
 %input numbers for the scene numbers corresponding to each dose
-doseandscenepromptarray = cell(1,numberOfDoses);
-for i=1:numberOfDoses
-    doseandscenepromptarray{i} = strcat('dose',num2str(i),'-',num2str(doses(i)));
-end
-prompt = doseandscenepromptarray;
-dlg_title = 'what scenes correspond to which dose? (Use Matlab input notation "3,9:11")...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-doseToScene = cellfun(@str2num,inputdlgOutput,'UniformOutput',0);
+doseToScenez = txt(2:numberOfDoses+1,3);
+doseToScene = cellfun(@str2num,doseToScenez,'UniformOutput',0);
 %output is a 1,n cell array of matrices corresponding to the scenes for the
-%n doses
+
 
 %input dose information into the structure
 coloringChoice = 'scene'; %choose which field based upon which each cell trace will get colored
@@ -73,7 +63,7 @@ coloringArray = vertcat({dosestruct.(coloringChoice)});
 
 for j=1:length(doseToScene)
     doseToScenemat = doseToScene{j};
-    doseToSceneArray=[];
+    doseToSceneArray=cell(1,length(doseToScenemat));
     for i = 1:length(doseToScenemat)
         dosestr = num2str(doseToScenemat(i)); 
         if length(dosestr)>1
@@ -84,12 +74,10 @@ for j=1:length(doseToScene)
     end
     
     
-    disp(doseToSceneArray)
 
 indicesChoice =channelregexpmaker(doseToSceneArray);
 [~,~,~,d] =  regexp(coloringArray,indicesChoice);
 dmat = cellfun(@isempty,d);
-disp(dmat)
 indices = ~dmat;
 [dosestruct(indices).dose] = deal(doses(j));
 [dosestruct(indices).dosestr] = deal(num2str(doses(j)));
@@ -97,33 +85,15 @@ end
 
 
 
-
-
 %%%%%%%%%%%%%%%%%%%%%%  number of Tgfbeta additions %%%%%%%%%%%%%%%%%%
-prompt = 'how many times was tgf added?...';
-dlg_title = 'how many times was tgf added?...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-tgftime = cellfun(@str2num,inputdlgOutput,'UniformOutput',1);
+tgfadditions = num(1,4);
 
 %input numbers for the frame(s) after which tgfbeta was added
-tgftimeandscenearray = cell(1,tgftime);
-for i=1:tgftime
-    tgftimeandscenearray{i} = strcat('addition#',num2str(tgftime(i)));
-end
-prompt = tgftimeandscenearray;
-dlg_title = 'after what frame(s) was tgf added...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-tgfFrame = cellfun(@str2num,inputdlgOutput,'UniformOutput',1);
+tgfFrames = num(1:tgfadditions,5);
 
 %input numbers for the scenes for each tgfbeta addition
-tgftimeandscenearray = cell(1,tgftime);
-for i=1:tgftime
-    tgftimeandscenearray{i} = strcat('addition#',num2str(tgftime(i)),'-',num2str(tgfFrame(i)));
-end
-prompt = tgftimeandscenearray;
-dlg_title = 'what scenes correspond to each addition each addition?(Use Matlab input notation "3,9:11")...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-tgfScenes = cellfun(@str2num,inputdlgOutput,'UniformOutput',0);
+tgfScenez = txt(2:tgfadditions+1,6);
+tgfScenes = cellfun(@str2num,tgfScenez,'UniformOutput',0);
 %output is a 1,n cell array of matrices corresponding to the scenes for the
 %n doses
 
@@ -133,7 +103,7 @@ coloringArray = vertcat({dosestruct.(coloringChoice)});
 
 for j=1:length(tgfScenes)
     tgfToScenemat = tgfScenes{j};
-    tgfToSceneArray=[];
+    tgfToSceneArray=cell(1,length(tgfToScenemat));
     for i = 1:length(tgfToScenemat)
         dosestr = num2str(tgfToScenemat(i)); 
         if length(dosestr)>1
@@ -148,24 +118,21 @@ for j=1:length(tgfScenes)
 indicesChoice =channelregexpmaker(tgfToSceneArray);
 [~,~,~,d] =  regexp(coloringArray,indicesChoice);
 dmat = cellfun(@isempty,d);
-disp(dmat)
 indices = ~dmat;
-[dosestruct(indices).tgfFrame] = deal(tgfFrame(j));
-[dosestruct(indices).tgfFramestr] = deal(num2str(tgfFrame(j)));
+[dosestruct(indices).tgfFrame] = deal(tgfFrames(j));
+[dosestruct(indices).tgfFramestr] = deal(num2str(tgfFrames(j)));
 end
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%  reference frames %%%%%%%%%%%%%%%%%%
-prompt = 'what are the flatfield reference scenes?...';
-dlg_title = 'what are the flatfield reference scenes?...';
-inputdlgOutput = inputdlg(prompt,dlg_title,[1,80]);
-BACKGROUND = cellfun(@str2num,inputdlgOutput,'UniformOutput',0);
-
+% BACKGROUND = cellfun(@str2num,inputdlgOutput,'UniformOutput',0);
+BACKGROUNDz = txt(2,7);
+BACKGROUND = cellfun(@str2num,BACKGROUNDz,'UniformOutput',0);
 
 for j=1:length(BACKGROUND)
     tgfToScenemat = BACKGROUND{j};
-    tgfToSceneArray=[];
+    tgfToSceneArray=cell(1,length(tgfToScenemat));
     for i = 1:length(tgfToScenemat)
         dosestr = num2str(tgfToScenemat(i)); 
         if length(dosestr)>1
@@ -180,15 +147,10 @@ for j=1:length(BACKGROUND)
 indicesChoice =channelregexpmaker(tgfToSceneArray);
 [~,~,~,d] =  regexp(coloringArray,indicesChoice);
 dmat = cellfun(@isempty,d);
-disp(dmat)
 indices = ~dmat;
 [dosestruct(indices).flatfield] = deal('BACKGROUND');
 [dosestruct(dmat).flatfield] = deal('experiment');
 end
-
-
-
-
 
 
 
@@ -201,17 +163,7 @@ savename = strcat(savename,'-DoseAndSceneData.mat');
 save(savename)
 
 
-    
-    
-    
-    
-    
-    
-
-
-
-stophere=1;
-
+ 
 
 end
 

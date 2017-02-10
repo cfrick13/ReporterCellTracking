@@ -95,9 +95,6 @@ spec_directory = '_Hoechst_flat';
 [timeFrames,framesForDir] = determineTimeFrames(spec_directory);
 cd .. 
 
-%determine date of experiment
-[a,b] = regexp(A,'201[0-9]');
-ExpDate = A(a:b+6);OGExpDate = ExpDate; [a,~] = regexp(ExpDate,'_');ExpDate(a) = '-';
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1347,10 +1344,21 @@ end
 
 %plot your cells!
 function psettings = PlotSettings_callback(~,~)
+global exportdir OGExpDate
+cd(exportdir)
+
+queryName = strcat(OGExpDate,'*DoseAndScene*.mat');
+filelist = dir(queryName)
+if isempty(queryName)
 prompt = {'tgfbeta frame','last frame'};
 dlg_title = 'frames where cells must be tracked...';
 inputdlgOutput = inputdlg(prompt,dlg_title);
 framesThatMustBeTracked = cellfun(@num2str,inputdlgOutput,'UniformOutput',1);
+else
+    A = load(char(filelist.name));
+    dosestruct = A.dosestruct;
+    framesThatMustBeTracked = [dosestruct(1).tgfFrame 10+dosestruct(1).tgfFrame];
+end
 psettings.framesThatMustBeTracked = framesThatMustBeTracked;
 end
 
@@ -1928,7 +1936,10 @@ end
 for i = 1:size(smadpxls,1)
     plotStruct(i).meanNucEGFP = Smad(i,:);
     plotStruct(i).meanNucRFP = Cfp(i,:);
+    plotStruct(i).medianCfpbkg = Cfpbkg;
+    plotStruct(i).medianSmadbkg = Smadbkg;
 end
+
 
 
 
@@ -2413,7 +2424,7 @@ end
 
 function xy = labelCells(~,~)
 
-global ExportNameKey ExportName displaycomments OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName displaycomments  SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -2509,7 +2520,7 @@ end
 end
 
 function exportFrames(~,~)
-global ExportNameKey ExportName OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+global ExportNameKey ExportName  imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
@@ -2585,7 +2596,7 @@ CENTROID = struct();
  
 end
 function exportLabels(~,~)
-global ExportNameKey ExportName OGExpDate imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings adjuster
+global ExportNameKey ExportName  imgsize displaytracking SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings adjuster
 
     if plottingON == 0
     psettings = PlotSettings_callback([],[]);
