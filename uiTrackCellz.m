@@ -3468,6 +3468,7 @@ else  %under normal circumstances
     channelimg(channelimg == 255) =254;
     colormap(cmap);
     If = bwperim(If);
+%     If = imdilate(If,strel('disk',1));
     channelimg(If>0)=255;
 end
 
@@ -3493,9 +3494,9 @@ set(ttl,'FontSize',12);
             mainY = squeeze(traject(:,2,:));
             idx = ~isnan(mainY(:,t));
             
-            h = plot(mainX(idx,:)',mainY(idx,:)','LineWidth',2);
+            h = plot(mainX(idx,:)',mainY(idx,:)','LineWidth',3);
             
-            cmaplz = colormap(lines(size(mainX,1)));
+            cmaplz = colormap(colorcube(size(mainX,1).*2));
             cmaplz = cmaplz(idx,:);
                 for i=1:length(h)
                     h(i).Color = cmaplz(i,:);

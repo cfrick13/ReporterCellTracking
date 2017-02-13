@@ -11,43 +11,48 @@
 % parentdir = mfiledir;
 % A = strcat(parentdir);
 
-%channels to be processed and analyzed
-channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
 
 %set parent directory
-% A = 'C:\Users\Kibeom\Desktop\Tracking\'; 
-A = 'D:\Frick\';
+mdir = mfilename('fullpath');
+    [~,b ] = regexp(mdir,'/');
+        if isempty(b)
+            [~,b] = regexp(mdir,'\');
+        end
+    parentdir = mdir(1:b(end-1));
+exportdir = strcat(parentdir,'Tracking/Export/');
+
+
+
+
 
 %for loop iterating through subdirectories
 % for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
 % for BB = {'2017_01_30 plate exp2','2017_01_27 plate exp1','2017_01_31 plate exp1'};
 % for BB = {'2017_01_27 plate exp1','2017_01_31 plate exp1'};
-for BB = {'2017_01_30 plate exp2'};
+for BB = {'2017_02_08 plate exp1'};
 B = BB{1};
+FileName = B;
+datequery = strcat(FileName,'*DoseAndScene*');
+cd(exportdir)
+filelist = dir(datequery);
+    if isempty(filelist)
+        error(strcat('need to run ExtractMetadata for-',FileName));
+%        dosestruct = makeDoseStruct; %run function to make doseStruct 
+    else
+        dosestructstruct = load(char(filelist.name));
+        dosestruct = dosestructstruct.dosestruct;
+    end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % renamemCherrytoMkate(A,B)
 % renamemWRONGtoRIGHT(A,B)
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if      strcmp(B,'2017_01_22 plate exp1')
-    BACKGROUND = [41:45];
-elseif strcmp(B,'2017_01_25 plate exp1')
-    BACKGROUND = [38:42];
-elseif  strcmp(B,'2017_01_27 plate exp1')
-    BACKGROUND = [91 92 93 94 96];
-elseif  strcmp(B,'2017_01_30 plate exp1')
-    BACKGROUND = [17:21];
-    dontsegement = [1:21];
-elseif  strcmp(B,'2017_01_30 plate exp2')
-    BACKGROUND = [17:21];
-    dontsegement = [17:21];
-elseif  strcmp(B,'2017_01_31 plate exp1')
-    BACKGROUND = [1:10];
-end
-
-
+A=[];
+channelstoinput = dosestructstruct.channelNames;
+bkg = dosestructstruct.BACKGROUND;
+BACKGROUND = bkg{1};
+dontsegment = BACKGROUND;
+% dontsegment = horzcat(1:5,BACKGROUND);s
 % BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -58,12 +63,12 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
+BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SegmentationOfTimeLapseImages(A,B,dontsegement);
+SegmentationOfTimeLapseImages(A,B,dontsegment);
 % renameDirectoryItems
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

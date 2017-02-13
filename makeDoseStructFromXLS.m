@@ -1,4 +1,4 @@
-function dosestruct = makeDoseStructFromXLS
+function dosestruct = makeDoseStructFromXLS(savename)
 close all
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
@@ -11,10 +11,10 @@ cd(exportdirz);
 
 
 
-FileName = uigetfile('*metaData.mat');%choose file to load
-load(FileName)
+% FileName = uigetfile('*metaData.mat');%choose file to load
+load(savename)
 % load(FileName)
-
+FileName = savename;
 [~,b] = regexp(FileName,'exp[0-9]');
 queryname = strcat(FileName(1:b),'*experimentInfo.xlsx');
 filelist = dir(queryname);

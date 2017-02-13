@@ -1,4 +1,4 @@
-function plot_exportStruct_doses
+function SigFeaturesArray = convert_exportStruct_doses_toInformation
 close all
 %determine the location of the matlab function and establish export
 %directory in relation to that filepath
@@ -109,7 +109,6 @@ indices = true(1,length(exportStruct));
     cmap = colormap(colormapChoice)./darkenFactor;
     close 1
     cmap = cmap; %darken the cmap
-disp(cmap)
 
 
 %assign a color array using the created colormap based on the choices above
@@ -155,88 +154,28 @@ indices = true(1,length(exportStruct));
 % timeMatrix = timeOnes*timeVector;
 
 
-basalTime = -15;
-% timeDuration = timeMatrix(1,end);
-timeDuration = 90;
-f = figure(3);
+response = struct();
+SigFeaturesArray = cell(1,length(doseList));
 for i=1:length(doseList)
     doseChoice = doseList{i};
     idx = strcmp(doseListArray,doseChoice);
-    subplot(2,length(doseList),i);
-        p = plot(timeMatrix(idx,:)',smadCellTraces(idx,:)','LineWidth',1.5,'Color',[0. 0 0]);
-            set(p, {'color'}, num2cell(colormapMatrix(idx,:),2));
-%             xlim([-30 200])
-            xlim([basalTime timeDuration])
-            xlabel('minutes');
-            ylabel('total nuclear fluorescence (au)')
-            title('Level of endogenous nuclear NG-Smad3');
-            h=p.Parent;
-            h.XTick = [-30:30:400];
-%             ylim([0 max(max(smadCellTraces))])
-            ylim([0 6000])
-    subplot(2,length(doseList),i+length(doseList));
-        p = plot(timeMatrix(idx,:)',smadCellTracesNorm(idx,:)','LineWidth',1.5,'Color',[0 0. 0]);
-            set(p, {'color'}, num2cell(colormapMatrix(idx,:),2));
-%             xlim([-30 200])
-            xlim([basalTime timeDuration])
-            ylim([0 5])
-            xlabel('minutes');
-            ylabel(strcat('fold-change in total nuclear fluorescence'))
-            h=p.Parent;
-            h.XTick = [-30:30:400];
-            title('Fold-change of endogenous nuclear NG-Smad3')
-            t = text(0,0,strcat('N=',num2str(sum(idx))));
-            t.Units='normalized';
-            t.Position = [0.95 0.9];
-            t.HorizontalAlignment = 'right';
-            t.FontSize = 12;
-                t = text(0,0,strcat(doseChoice,' ng/mL Tgf'));
-                t.Units='normalized';
-                t.Position = [0.95 0.85];
-                t.HorizontalAlignment = 'right';
-                t.FontSize = 12;
+    
+    response.abslevel = smadCellTraces(idx,:);
+    response.fc = smadCellTracesNorm(idx,:);
+    
+    fnames = fieldnames(response);
+    responseMatrix = [];
+    for jk=1:length(fnames)
+        fn = fnames{jk};
+        responseMatrix = horzcat(responseMatrix,response.(fn));
+    end
+        
+     % SigFeaturesArray{1,i} = [n,m] where each m is a response type (measure) for n number of cells (observation)
+%     responseMatrix = horzcat(abslevel,fc); %response matrix = [n,m] where each m is a response type (measure) for n number of cells (observation)
+    SigFeaturesArray{1,i} = responseMatrix';% SigFeaturesArray = {1,n} where n = conditions (e.g. doses)
+   
 end
             
-%     subplot(2,2,3);
-%     scatter(smadCellTraces(:,1),reporterCellTraces(:,1));
-%     subplot(2,2,4);
-%     scatter(smadCellTraces(:,40),reporterCellTraces(:,40));
-f.Position = [182 510 2253 719];
-displayFile = FileName;
-[a] = regexp(displayFile,'_');
-displayFile(a) = '-';
-f=gcf;
-f.Units = 'normalized';
-txtsring = displayFile;
-t = uicontrol('Style','text','String',txtsring);
-    t.Units = 'Normalized';
-    t.Position = [0.01 0.93  0.15 0.05];
-     t.FontSize = 14;
-    t.HorizontalAlignment = 'left';
-
-
-numberOfCells = num2str(size(smadCellTraces,1));
-txtsring = strcat('N=',numberOfCells);
-t = uicontrol('Style','text','String',txtsring);
-    t.Units = 'Normalized';
-    t.Position = [0.01 0.91  0.1 0.05];
-     t.FontSize = 14;
-     t.HorizontalAlignment = 'left';
-
-
-exprimentDuration = num2str(round(timeMatrix(1,end)./60,2,'significant'));
-txtsring = strcat(exprimentDuration,'-hours');
-t = uicontrol('Style','text','String',txtsring);
-    t.Units = 'Normalized';
-    t.Position = [0.01 0.89  0.1 0.05];
-    t.FontSize = 14;
-    t.HorizontalAlignment = 'left';
-
-for h =f.Children'
-    h.FontSize = 14;
-    h.FontName = 'helvetica';
-    stophere=1;
-end
 
         
 

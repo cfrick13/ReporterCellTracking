@@ -67,17 +67,19 @@ for i = 0:1:imageCount-1
     timeVec(i+1,:) = t./60; %save in units of minutes
     clear t
 end
-% 
-% disp(thec)
-% disp(thet)
-% disp(timeVec./60)
 
 
 
 
 for i = 1:channelCount
     cN = omeMeta.getChannelName(0,i-1);
-    channelNames{i} = char(cN);
+    cname = char(cN);
+    a = (cname==' ');
+    if sum(a)==1
+        g = find(a==1);
+        cname = cname((g+1):end);
+    end
+    channelNames{i} = cname;
 end
 
 
@@ -96,6 +98,5 @@ cd(exportdir)
 savename = strcat(savename,'-metaData.mat');
 clear omeMeta reader deltaT_Hash theC_Hash theT_Hash FileName
 save(savename)
-% datastruct.channelNames = 
 
-% t(theT+1) = y.value
+makeDoseStructFromXLS(savename)

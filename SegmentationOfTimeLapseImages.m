@@ -187,7 +187,8 @@ function If = segmentationNucleus(FinalImage,channel,scenename,filename,segchann
 % cd(subdirname)
 mkdir(strcat(segchannel));
 
-foldername = '_mKate_flat';
+foldername = 'mKate_flat';
+% foldername = '_mKate_flat';
 tsn = determineTimeFrame(foldername);
 
 % channel ='mKate';
@@ -554,7 +555,8 @@ function If = segmentationEGFP(FinalImage,channel,scenename,filename,segchannel,
 global   nucleus_seg
 mkdir(strcat(segchannel));
 
-foldername = '_mKate_flat';
+foldername = 'mKate_flat';
+% foldername = '_mKate_flat';
 tsn = determineTimeFrame(foldername);
 
 % parameters
@@ -571,6 +573,66 @@ finalerode=2;
 % prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
 
 %start
+
+%initial segmentation to determine how much of image is covered by cells
+    img = FinalImage(:,:,1); 
+    imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
+
+    imgW = wiener2(img,[1 20]);
+    imgWW = wiener2(imgW,[20 1]);
+    imgWWW = wiener2(imgWW,[5 5]);
+    imgRawDenoised = imgWWW;
+    denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+    highpoints = prctile(denoiseVec,95);
+    imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
+    %
+    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+    %
+    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.4*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown-1);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Ih = ~subzero;
+    Ih = imclose(Ih,strel('disk',20));
+    areaOfSegmentation = sum(sum(Ih));
+    %
+    percentageOfImageSegmented = round(100*(areaOfSegmentation./(size(img,1)*size(img,2))));
+    disp(percentageOfImageSegmented);
+%     percentageOfImageSegmented=10;
+%     nucDiameter = nucDiameter.*(percentageOfImageSegmented/50);
+% percentageOfImageSegmented=90;
+
+
 for frames = 1:size(FinalImage,3)
 %Smooth Image using Anisotropic Diffusion
 % Options.Scheme :  The numerical diffusion scheme used
@@ -597,7 +659,7 @@ for frames = 1:size(FinalImage,3)
 %						2 : Edge enhancing diffusion (EED)
 %						3 : Coherence-enhancing diffusion (CED)
 %						4 : Hybrid Diffusion With Continuous Switch (HDCS)
-    img = FinalImage(:,:,frames); 
+     img = FinalImage(:,:,frames); 
     imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
 
     imgW = wiener2(img,[1 20]);
@@ -605,7 +667,7 @@ for frames = 1:size(FinalImage,3)
     imgWWW = wiener2(imgWW,[5 5]);
     imgRawDenoised = imgWWW;
     denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
-    highpoints = prctile(denoiseVec,95);
+    highpoints = prctile(denoiseVec,percentageOfImageSegmented);
     imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
     
  
@@ -670,13 +732,41 @@ for frames = 1:size(FinalImage,3)
 %     Ihdc = imclose(Ihd,strel('disk',2));
 %     Ihdcf = imfill(Ihdc,'holes');
 %     Im = Ihdcf;
-    Ihc = imclose(Ih,strel('disk',20));
+    width = 10;
+    Ihc = imclose(Ih,strel('disk',width));
 %     Ihcf = imfill(Ihc,'holes');
 %     Ihcf = Ihc;
-    Ihcd = imdilate(Ihc,strel('disk',20));
+%     Ihcd = imdilate(Ihc,strel('disk',width));
 %     Ihcfd = Ihcf;
-    Im=Ihcd;
+    Im=Ihc;
     If =Im;
+
+
+If = imgRawDenoised;
+mmIf = max(max(If)) ;
+If(If<mmIf)=0;
+If(If == mmIf)=1;
+If = logical(If);
+stophere=1;
+arealimit = (100-percentageOfImageSegmented)./8;
+imgarea = (size(If,1).*size(If,2));
+
+   a = length(If==0);
+   width = 10;
+   Ig= If;
+   while  1
+       se = strel('disk',width);
+       a = ((imgarea-sum(sum(Ig)))./imgarea).*100;
+       if a<arealimit
+           break
+       else
+            Ig = imdilate(Ig,se);
+       end
+%        disp(a)
+   end
+%     imagesc(Ig)
+
+    If=Ig;
 
 
 
