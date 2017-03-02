@@ -27,7 +27,7 @@ dateofexp = expname(1:10);
 
 metadir = strcat(parentdir,'Tracking/Export');
 cd(metadir)
-filelist  = dir(strcat('*',dateofexp,'*',expnum,'*'));
+filelist  = dir(strcat('*',dateofexp,'*',expnum,'*metaData.mat'));
 metadatafile = char(filelist.name);
 A = load(metadatafile);
 

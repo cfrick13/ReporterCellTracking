@@ -97,7 +97,7 @@ folderlist = dir(strcat('*',SceneList{1},'*'));
 foldername = folderlist.name;
 cd (char(foldername))
 folderlist = dir('*mKate*');
-foldernameglobal=folderlist.name;
+foldernameglobal=char(folderlist.name);
 spec_directory = foldernameglobal;
 [timeFrames,framesForDir] = determineTimeFrames(spec_directory);
 cd .. 
@@ -108,7 +108,9 @@ cd ..
 
 %determine the number of channels
 folderlist = dir(strcat('*','*'));
-    [~,~,~,channelsListed] = regexp([folderlist.name],channelinputs);
+channelinputsUnderscore =channelregexpmakerUnderscore(channelstoinput);
+
+    [~,~,~,channelsListed] = regexp([folderlist.name],channelinputsUnderscore);
     channelList = unique(channelsListed);
             for i=1:length(channelList)
                 chan = channelsListed{i};
@@ -465,6 +467,18 @@ function channelinputs =channelregexpmaker(channelstoinput)
     end
 end
 
+function channelinputs =channelregexpmakerUnderscore(channelstoinput)
+    channelinputs = '(';
+    for i=1:length(channelstoinput) % creates a string of from '(c1|c2|c3|c4)' for regexp functions
+        if i ==1
+        channelinputs = strcat(channelinputs,channelstoinput{i},'_');
+        elseif i < length(channelstoinput)
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i},'_');
+        else
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i},'_)');
+        end
+    end
+end
 
 
 function sliderOneAdjust(source,~)
@@ -498,7 +512,7 @@ function plotTestOut(testOut,channel)
     global subaxestwo
 
     if strcmp(channel,'mKate')
-    stringsToTest = {'Ie','Ihcf','gradmag2','Ieg'};
+    stringsToTest = {'rawMinusLPScaled','Ihcf','gradmag2','Ieg'};
     else
 %     stringsToTest = {'rawMinusLPScaled','Ih','Ihcd','Shapes'};
     stringsToTest = {'imgRawDenoised','Ih','gradmag2','fgm4'};
@@ -657,7 +671,7 @@ imgRawDenoised = imgRaw;
     
 % I = imgRawDenoised;
 % I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
-I = rawMinusLPScaled;
+I = rawMinusLPScaledContrasted;
 
 %gradmag
 hy = fspecial('sobel');
@@ -668,17 +682,17 @@ gradmag = sqrt(Ix.^2 + Iy.^2);
 
 %Smoothing
 I = Isum;
-width = round(nucDiameter./5);
+width = round(nucDiameter./10);
 se = strel('disk', width);
 Io = imopen(I, se);
 Ie = imerode(Io, se);
-Ieg = gaussianBlurz(Ie,sigma./2,kernelgsize);
+Ieg = gaussianBlurz(Ie,round(sigma./2),round(kernelgsize./2));
 %     width = round(nucDiameter./10);
 %     Ime = imerode(Ihcf,strel('disk',width));
 %     Imeo = imopen(Ime,strel('disk',width));
 %     Ieg(~Imeo)=0;
 fgm = imregionalmax(Ieg);
-width = round(nucDiameter./4);
+width = round(nucDiameter./10);
 fgm4 = imdilate(fgm,strel('disk',width));
 % fgm4 =fgm;
 bw = Im;

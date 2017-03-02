@@ -29,7 +29,7 @@ exportdir = strcat(parentdir,'Tracking/Export/');
 % for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
 % for BB = {'2017_01_30 plate exp2','2017_01_27 plate exp1','2017_01_31 plate exp1'};
 % for BB = {'2017_01_27 plate exp1','2017_01_31 plate exp1'};
-for BB = {'2017_02_08 plate exp1'};
+for BB = {'2017_02_27 plate exp1'};
 B = BB{1};
 FileName = B;
 datequery = strcat(FileName,'*DoseAndScene*');
@@ -63,7 +63,7 @@ dontsegment = BACKGROUND;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
+% BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

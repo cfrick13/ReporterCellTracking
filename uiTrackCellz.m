@@ -1,33 +1,21 @@
 function uiTrackCellz
-global ExportNameKey ExportName exportdir plottingTotalOrMedian channelinputs adjuster cmapper tcontrast lcontrast ThirdPlotAxes SecondPlotAxes OGExpDate plottingON PlotAxes cmap TC A AA timeFrames framesForDir ImageDetails MainAxes SceneList displaytracking imgsize ExpDate
+global runIterate ExportNameKey ExportName exportdir plottingTotalOrMedian channelinputs adjuster cmapper tcontrast lcontrast ThirdPlotAxes SecondPlotAxes OGExpDate plottingON PlotAxes cmap TC A AA timeFrames framesForDir ImageDetails MainAxes SceneList displaytracking imgsize ExpDate
 adjuster=0;
 imgsize = [512 512];
-plottingTotalOrMedian = 'total';
+plottingTotalOrMedian = 'median';
 tcontrast = 99;
 lcontrast = 1;
 % exportdir = 'C:\Users\Kibeom\Desktop\Tracking\Export\';
-ExportNameKey = 'final';
+ExportNameKey = 'initial';
+disp('Export name key is "INITIAL" not FINAL')
 ExportName = 'fricktrack';
         
 
 
-channelstoinput = {'_mKate','_EGFP','_CFP','DIC','_Hoechst'};
-% channelstoinput = {'mKate','_EGFP','_CFP','_DIC'};
-channelinputs = '(';
-for i=1:length(channelstoinput)
-    if i ==1
-    channelinputs = strcat(channelinputs,channelstoinput{i});
-    elseif i < length(channelstoinput)
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i});
-    else
-        channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
-    end
-end
-
 clearvars -global SceneDirectoryPath
 
 
-
+runIterate =0;
 TC = 1;
 ImageDetails = InitializeImageDetails;
 displaytracking = 0;
@@ -78,6 +66,7 @@ dlog = ~cellfun(@isempty,d,'UniformOutput',1);
 dcell = d(dlog);
 SceneList = cellfun(@(x) x{1},dcell,'UniformOutput',0);
 
+
 %determine the number of images in sequence (time points)
 cd (subdirname)
 
@@ -90,10 +79,59 @@ ExpDate = A(a:b+6);OGExpDate = A(a:d); [a,~] = regexp(ExpDate,'_');ExpDate(a) = 
 folderlist = dir(strcat('*',SceneList{1},'*'));
 foldername = folderlist.name;
 
+
+
+
+
+
+
+FileName = OGExpDate;
+datequery = strcat(FileName,'*DoseAndScene*');
+cd(exportdir)
+filelist = dir(datequery);
+    if isempty(filelist)
+        error(strcat('need to run ExtractMetadata for-',FileName));
+%        dosestruct = makeDoseStruct; %run function to make doseStruct 
+    else
+        dosestructstruct = load(char(filelist.name));
+        dosestruct = dosestructstruct.dosestruct;
+    end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% renamemCherrytoMkate(A,B)
+% renamemWRONGtoRIGHT(A,B)
+% cd('D:\Users\zeiss\Documents\MATLAB')
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+channelstoinput = dosestructstruct.channelNames;
+channelinputs =channelregexpmaker(channelstoinput);
+bkg = dosestructstruct.BACKGROUND;
+imgsize = dosestructstruct.dimensions;
+backgroundScenes = dosestructstruct.indicesChoice;
+
+cd(A)
+cd(subdirname)
 cd (char(foldername))
-spec_directory = '_Hoechst_flat';
+spec_directory = strcat('*',channelstoinput{1},'_flat');
 [timeFrames,framesForDir] = determineTimeFrames(spec_directory);
 cd .. 
+
+%remove scenes that are background images
+%     bkinputs =channelregexpmaker(bkarray);
+subd = SceneList;
+    [~,~,~,d] = regexp(SceneList,backgroundScenes);
+    subdirlog = cellfun(@isempty,d,'UniformOutput',1);
+    subd = subd(subdirlog);
+SceneList=subd;
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -242,6 +280,10 @@ hSaveTrackingAs = uicontrol('Style','pushbutton',...
     'String','SaveTrackingAs',...
     'Position',[xpositions(mmm)-buttonwidth./2,ypositions(mmm)-buttonheight,buttonwidth.*2,buttonheight.*2],...
     'Callback',@saveTrackingFileAs_callback);
+hTrackSaveIterate = uicontrol('Style','pushbutton',...
+    'String','trackSaveIterate',...
+    'Position',[xpositions(mmm)-buttonwidth./2 - 100,ypositions(mmm)-buttonheight,buttonwidth,buttonheight],...
+    'Callback',@trackSaveIterate_callback);
         mmm=mmm+1;
         mmm=mmm+1;
         mmm=mmm+1;
@@ -283,9 +325,14 @@ hPlotSettings = uicontrol('Style','pushbutton',...
       mmm=mmm+1;  
       
 hExportCells = uicontrol('Style','pushbutton',...
-    'String','Export Cells',...
+    'String','ExportTrackedCells',...
     'Position',[xpositions(mmm)-40,ypositions(mmm),buttonwidth.*1.5,buttonheight./2],...
-    'Callback',@exportCells);
+    'Callback',@exportTrackedCells);
+hExportCells = uicontrol('Style','pushbutton',...
+    'String','ExportAllCells',...
+    'Position',[xpositions(mmm)+80,ypositions(mmm),buttonwidth.*1.2,buttonheight./2],...
+    'Callback',@exportAllCells);
+        mmm=mmm+1; 
         mmm=mmm+1; 
         
 hLabelCells = uicontrol('Style','pushbutton',...
@@ -315,7 +362,7 @@ sldc1 = uicontrol('Style', 'slider',...
         'String','channel1',...
         'Min',0,'Max',255,'Value',200,...
         'Position', [xpositions(mmm)-40,ypositions(mmm),buttonwidth,buttonheight./2],...
-        'Callback', @PMthreshslider); i=i+2;
+        'Callback', @PMthreshslider); mmm=mmm+2;
         
        
 f.Visible = 'on'   ;
@@ -1348,7 +1395,7 @@ global exportdir OGExpDate
 cd(exportdir)
 
 queryName = strcat(OGExpDate,'*DoseAndScene*.mat');
-filelist = dir(queryName)
+filelist = dir(queryName);
 if isempty(queryName)
 prompt = {'tgfbeta frame','last frame'};
 dlg_title = 'frames where cells must be tracked...';
@@ -1406,26 +1453,35 @@ end
 
 
 smooththat=0;
-[Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+[plotStructUI] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+% plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
 smooththat=toggleCFPnorm;
 
-% if smooththat==1
-% toplot = SmadFC./CfpFC;
-% else
-% toplot = SmadFC;    
-% end
 
-if smooththat==1
-toplot = SmadFC;
+% plotStructUI.EGFP = Smad;
+% plotStructUI.mKate = mkate;
+% plotStructUI.Cfp = Cfp;
+% plotStructUI.CfpFC = CfpFC;
+% plotStructUI.SmadFC = SmadFC;
+% plotStructUI.mkateFC = mkateFC;
+% plotStructUI.Smadbkg = Smadbkg;
+% plotStructUI.Cfpbkg = Cfpbkg;
+% plotStructUI.mkatebkg = mkatebkg;
+
+if strcmp(ImageDetails.Channel,'EGFP')
+    plotMat = plotStructUI.Smad;
+    plotMatFC = plotStructUI.SmadFC;
+elseif strcmp(ImageDetails.Channel,'mKate')
+    plotMat = plotStructUI.mkate;
+    plotMatFC = plotStructUI.mkateFC;
 else
-toplot = SmadFC;    
+    plotMat = plotStructUI.Smad;
+    plotMatFC = plotStructUI.SmadFC;
 end
+    
 
-        xmin = 1;
-        if xmin <1
-            xmin = 1
-        end
-        
+xmin = 0;
+toplot = plotMatFC;
 h = plot(SecondPlotAxes,toplot');
     if displaytracking ==1
         for i=1:length(h)
@@ -1441,18 +1497,8 @@ h = plot(SecondPlotAxes,toplot');
 SecondPlotAxes.XLim = ([xmin size(toplot,2)]);
 SecondPlotAxes.YLim = ([0 6]);
 
-% if smooththat==1
-% toplot = Smad./CfpFC;
-% else
-% toplot = Smad;    
-% end
 
-if smooththat==1
-toplot = Smad;
-else
-toplot = Smad;    
-end
-
+toplot = plotMat;
 h = plot(PlotAxes,toplot');
     if displaytracking ==1
         for i=1:length(h)
@@ -1466,12 +1512,14 @@ h = plot(PlotAxes,toplot');
         
 
 PlotAxes.XLim = ([xmin size(toplot,2)]);
-PlotAxes.YLim = ([0 max(max(toplot)).*1.2]);
+PlotAxes.YLim = ([0 prctile(toplot(:),98)]);
 % PlotAxes.YLim = ([0 1.4e06]);
 % PlotAxes.YScale = 'log';
 
 
 end
+
+
 function Plot_SpecificCell_callback(~,~)
 global plottingTotalOrMedian ThirdPlotAxes toggleCFPnorm Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
@@ -1512,7 +1560,7 @@ makeIMGidx = find(makeIMG==1);
 
 
 smooththat=0;
-[Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+[plotStructUI] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
 smooththat=toggleCFPnorm;
 if smooththat==1
 % toplot = SmadFC./CfpFC;
@@ -1526,11 +1574,11 @@ ThirdPlotAxes.YLim = ([0 6]);
 
 end
 
-function [Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat)
+function [plotStructUI] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat)
 global plottingTotalOrMedian
 
 
-plotbc=1;
+plotbc=0;
 plotTracesCell = cell(length(makeIMGidx),length(Tracked));
     for i = 1:length(Tracked)
         PXX = Tracked{i}.Cellz.PixelIdxList;
@@ -1545,7 +1593,7 @@ cd(SceneDirectoryPath)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                      %  open smad img  %
             smadimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
-            ChannelDirectory = dir(strcat('*','EGFP','*'));
+            ChannelDirectory = dir(strcat('*','EGFP_','*'));
             cd(ChannelDirectory.name)
             for k=1:length(timeFrames)
             imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
@@ -1555,7 +1603,7 @@ cd(SceneDirectoryPath)
             
                      %  open mKate img  %
             mkateimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
-            ChannelDirectory = dir(strcat('*','_mKate','*'));
+            ChannelDirectory = dir(strcat('*','mKate_','*'));
             cd(ChannelDirectory.name)
             for k=1:length(timeFrames)
             imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
@@ -1566,7 +1614,7 @@ cd(SceneDirectoryPath)
 
                    %    open cfp img  %
             cfpimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
-            ChannelDirectory = dir(strcat('*','CFP','*'));
+            ChannelDirectory = dir(strcat('*','mKate_','*'));
             cd(ChannelDirectory.name)
             for k=1:length(timeFrames)
             imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
@@ -1742,6 +1790,17 @@ mkateFC = zeros(size(mkate));
     end
     
     
+%     Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg
+plotStructUI.Smad = Smad;
+plotStructUI.mkate = mkate;
+plotStructUI.Cfp = Cfp;
+plotStructUI.CfpFC = CfpFC;
+plotStructUI.SmadFC = SmadFC;
+plotStructUI.mkateFC = mkateFC;
+plotStructUI.Smadbkg = Smadbkg;
+plotStructUI.Cfpbkg = Cfpbkg;
+plotStructUI.mkatebkg = mkatebkg;
+    
 end
 function plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirectoryPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat)
 plotStruct = struct();
@@ -1771,7 +1830,7 @@ plotbc=1; %0 or 1 to chose bleach corr or not bleach corr
             
                      %  open mKate img  %
             mkateimgstack = zeros(imgsize(1),imgsize(2),length(Tracked));
-            ChannelDirectory = dir(strcat('*','_mKate','*'));
+            ChannelDirectory = dir(strcat('*','mKate','*'));
             cd(ChannelDirectory.name)
             for k=1:length(timeFrames)
             imgfile = dir(strcat('*',framesForDir{k},'*.tif'));
@@ -1823,7 +1882,7 @@ plotbc=1; %0 or 1 to chose bleach corr or not bleach corr
 %                       open cfp img  %
             cd(SceneDirectoryPath)
             cd('tiffs') 
-            imgfile = dir('_mKate_flat_bleach_corr*');
+            imgfile = dir('mKate_flat_bleach_corr*');
             if isempty(imgfile)
                 cfpimgstack = [];
             else
@@ -1939,7 +1998,6 @@ for i = 1:size(smadpxls,1)
     plotStruct(i).medianCfpbkg = Cfpbkg;
     plotStruct(i).medianSmadbkg = Smadbkg;
 end
-
 
 
 
@@ -2344,7 +2402,7 @@ cd ..
       
 end
 
-function exportCells(~,~)
+function exportTrackedCells(~,~)
 global ExportNameKey ExportName exportdir OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 exportStruct = struct();
 
@@ -2384,8 +2442,9 @@ cd ..
                     
                 makeIMG = makeIMG(1,:)&makeIMG(2,:);
                 makeIMGidx = find(makeIMG==1);
+%                 makeIMG = true(size(makeIMG));
                 smooththat=0;
-                [Smad,Cfp,mkate,CfpFC,SmadFC,mkateFC,Smadbkg,Cfpbkg,mkatebkg] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+%                 [plotStructUI] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
                 plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
                 
                 fnames = fieldnames(plotStruct);
@@ -2421,8 +2480,86 @@ stophere=1;
         save(filename,'exportStruct');
 end
 
+function exportAllCells(~,~)
+global ExportNameKey ExportName exportdir OGExpDate SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
+exportStruct = struct();
+
+    if plottingON == 0
+    psettings = PlotSettings_callback([],[]);
+    plottingON=1;
+    end
+    
+framesThatMustBeTracked = psettings.framesThatMustBeTracked;
+cd(SceneDirectoryPath)
+cd ..
+    for scenenumber = 1:length(SceneList)
+        cd(SceneDirectoryPath)
+        cd ..
+        sceneN = char(SceneList{scenenumber});
+        disp(sceneN)
+        scenedir = dir(strcat('*',sceneN,'*'));
+        scenedirname = char({scenedir.name});
+        cd(scenedirname)
+        SceneDirPath = char({pwd});
+        
+
+        trackfile = dir(strcat(ExportNameKey,ExportName,'.mat'));
+%         trackfile = dir('finalfricktrack.mat');
+        trackfilename = char({trackfile.name});
+        
+            if ~isempty(trackfilename)
+                load(trackfilename)
+                PX = Tracked{framesThatMustBeTracked(1)}.Cellz.PixelIdxList;
+                makeIMG = zeros(length(framesThatMustBeTracked),length(PX));
+%                    
+%                     for jy = 1:length(framesThatMustBeTracked)
+%                     PX = Tracked{framesThatMustBeTracked(jy)}.Cellz.PixelIdxList;
+% %                     makeIMG(jy,:) = ~logical(cellfun(@(x) length(x)==1,PX,'UniformOutput',1)); %choose only the cells without NAN
+%                     makeIMG(jy,:) = ~logical(cellfun(@(x) length(x)<2,PX,'UniformOutput',1)); %choose only the cells without NAN
+%                     end
+%                     
+                makeIMG = makeIMG(1,:)& makeIMG(2,:);
+                makeIMG = true(size(makeIMG));
+                makeIMGidx = find(makeIMG==1);
+                smooththat=0;
+%                 [plotStructUI] = plotthemfunction(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+                plotStruct = plotthemfunctionToStructure(framesThatMustBeTracked,Tracked,A,ImageDetails,SceneDirPath,timeFrames,framesForDir,PlotAxes,imgsize,plottingON,psettings,makeIMG,makeIMGidx,smooththat);
+                
+                fnames = fieldnames(plotStruct);
+                if isempty(fieldnames(exportStruct)) %if exportStruct is empty 
+                    idx = 0;
+                    for i = 1:length(plotStruct)
+                        for j = 1:length(fnames)
+                            exportStruct(idx+i).(fnames{j}) = plotStruct(i).(fnames{j});
+                            exportStruct(idx+i).scene = sceneN;
+                            exportStruct(idx+i).cellID = i;
+                        end
+                    end
+                else    %if fields are defined, append the cell data to the next available index
+                    idx = length(exportStruct);
+                    for i = 1:length(plotStruct)
+                        for j = 1:length(fnames)
+                            exportStruct(idx+i).(fnames{j}) = plotStruct(i).(fnames{j});
+                            exportStruct(idx+i).scene = sceneN;
+                            exportStruct(idx+i).cellID = i;
+                        end
+                    end
+                end
+                
+                
+%                 exportStruct(:).scene = sceneN;
+        
+stophere=1;
+%         xlswrite(filename,eggcell,sceneN);
+                end
+    end
+        cd(exportdir)
+        filename = strcat(OGExpDate,'_tracking_export.mat'); 
+        save(filename,'exportStruct');
+end
 
 function xy = labelCells(~,~)
+
 
 global ExportNameKey ExportName displaycomments  SceneList Tracked ImageDetails A SceneDirectoryPath timeFrames framesForDir PlotAxes imgsize plottingON psettings
 
@@ -2707,31 +2844,37 @@ setSceneAndTime;
 end
 
 function Tracked = loadTrackedStructure
-global SceneDirectoryPath timeFrames TC ExportName
-cd(SceneDirectoryPath)
-trackfile = dir(strcat('*',ExportName,'.mat'));
-if ~isempty(trackfile)
-    trackfilelist = {trackfile.name};
-    Selection=[];
-    [Selection,~] = listdlg('PromptString','Select a tracking file:',...
-                'SelectionMode','single',...
-                'ListSize',[500 300],...
-                'ListString',trackfilelist);
-    if ~isempty(Selection)
-    load(trackfilelist{Selection}); %load Tracked
-    else
-    Tracked = makeTrackingFile(timeFrames);
-    end
+global SceneDirectoryPath timeFrames TC ExportName runIterate
+if runIterate ==0
+    cd(SceneDirectoryPath)
+    trackfile = dir(strcat('*',ExportName,'.mat'));
+    if ~isempty(trackfile)
+        trackfilelist = {trackfile.name};
+        Selection=[];
+        [Selection,~] = listdlg('PromptString','Select a tracking file:',...
+                    'SelectionMode','single',...
+                    'ListSize',[500 300],...
+                    'ListString',trackfilelist);
+        if ~isempty(Selection)
+        load(trackfilelist{Selection}); %load Tracked
+        else
+        Tracked = makeTrackingFile(timeFrames);
+        end
 
-    if isempty(Tracked{1}.Cellz)
-    TC=0;
+        if isempty(Tracked{1}.Cellz)
+        TC=0;
+        else
+        TC =1;
+        end
+
     else
-    TC =1;
+        Tracked = makeTrackingFile(timeFrames);
     end
-    
 else
     Tracked = makeTrackingFile(timeFrames);
 end
+
+
 end
 function loadTrackingFile_callback(~,~)
 global  Tracked TC
@@ -3526,6 +3669,41 @@ dlg_title = 'save tracking structure as...specific filename';
 filename = char(inputdlg(prompt,dlg_title));
 save(strcat(filename,ExportName,'.mat'),'Tracked')
 end
+
+function trackSaveIterate_callback(~,~)
+global runIterate SceneList ImageDetails TC A framesForDir Tracked SceneDirectoryPath ExportName timeFrames
+
+runIterate =1;
+    for i=1:length(SceneList)
+        %iteratively set scenes 
+            Trackedz = makeTrackingFile(timeFrames);
+            Tracked=Trackedz;
+            % Determine the selected data set.
+            str = SceneList;
+            val = i;
+            pvalue = char(str{val});
+            ImageDetails.Scene = pvalue;
+            setSceneAndTime
+
+
+        %run tracking
+            pvalue = ImageDetails.Scene;
+            Tracked = FrickTrackCellsYeah(A,framesForDir,pvalue,[]);
+            TC =1;
+            setSceneAndTime;
+
+
+        %save
+            % saveTrackingFileAs_callback([],[])
+            cd(SceneDirectoryPath)
+            filename = 'initial';
+            save(strcat(filename,ExportName,'.mat'),'Tracked')
+            disp(pvalue)
+    end
+runIterate =0;
+
+end
+
 function saveTrackingFileAs_callbackJ(~,~,SceneDirPath)
 global   Tracked
 cd(SceneDirPath)
@@ -3566,11 +3744,11 @@ end
 end
 
 function [timeFrames,framesForDir] = determineTimeFrames(spec_directory)
-dirlist = dir('_Hoechst_flat');
+dirlist = dir(spec_directory);
 if isempty(dirlist)
     foldername = '_mKate_flat';
 else
-    foldername = '_Hoechst_flat';
+    foldername = char(dirlist.name);
 end
 cd (foldername)
 
@@ -3676,6 +3854,19 @@ TifLink = Tiff(FileTif, 'r');
     
 end
 
+
+function channelinputs =channelregexpmaker(channelstoinput)
+    channelinputs = '(';
+    for i=1:length(channelstoinput) % creates a string of from '(c1|c2|c3|c4)' for regexp functions
+        if i ==1
+        channelinputs = strcat(channelinputs,channelstoinput{i});
+        elseif i < length(channelstoinput)
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i});
+        else
+            channelinputs = strcat(channelinputs,'|',channelstoinput{i},')');
+        end
+    end
+end
 
 
 
