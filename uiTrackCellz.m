@@ -1391,7 +1391,7 @@ end
 
 %plot your cells!
 function psettings = PlotSettings_callback(~,~)
-global exportdir OGExpDate
+global exportdir OGExpDate framesForDir
 cd(exportdir)
 
 queryName = strcat(OGExpDate,'*DoseAndScene*.mat');
@@ -1404,7 +1404,11 @@ framesThatMustBeTracked = cellfun(@num2str,inputdlgOutput,'UniformOutput',1);
 else
     A = load(char(filelist.name));
     dosestruct = A.dosestruct;
+    if length(framesForDir)<10
+    framesThatMustBeTracked = [dosestruct(1).tgfFrame 1+dosestruct(1).tgfFrame];
+    else
     framesThatMustBeTracked = [dosestruct(1).tgfFrame 10+dosestruct(1).tgfFrame];
+    end
 end
 psettings.framesThatMustBeTracked = framesThatMustBeTracked;
 end

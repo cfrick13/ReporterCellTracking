@@ -115,7 +115,12 @@ for expdircell = explist
             parfor j = 1:length(cfile) %load image and determine scene and timepoint and channel
                 filename = char(cfile(j));
                 img = imread(filename);
-
+                if max(size(img))>512
+                    disp(strcat('eek--',filename));
+                end
+                img = img(1:512,1:512); disp('remove this line of code')
+                
+                
                 [a,b] = regexp(filename,'s[0-9]+'); %determine scene
                 scene = filename(a:b);
 
@@ -171,6 +176,7 @@ function bkimg = medianBKG(BACKGROUND,tpoints,chan,dim)
     files = strcat('*',chan,'*',scene,'*',tpoints,'*');
     filelist = dir(files); cfile = {filelist.name}; filename = char(cfile);
     bkk = imread(filename);
+    bkk = bkk(1:512,1:512); disp('remove this line of code')
 
     % %  if ~strcmp(chan,'c3')
     % if ~strcmp(chan,'DIC')

@@ -205,7 +205,12 @@ end
 function If = segmentationNucleus(FinalImage,channel,scenename,filename,segchannel,pStruct)
 global foldernameglobal
 % cd(subdirname)
+dirlist = dir(strcat(segchannel));
+if isempty(dirlist)
 mkdir(strcat(segchannel));
+end
+
+
 
 foldername = foldernameglobal;
 % foldername = foldernameglobal;
@@ -223,6 +228,7 @@ finalerode=2;
 % prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
 
 %start
+IfFinal = zeros(size(FinalImage));
 for frames = 1:size(FinalImage,3)
 %Smooth Image using Anisotropic Diffusion
 % Options.Scheme :  The numerical diffusion scheme used
@@ -251,14 +257,9 @@ for frames = 1:size(FinalImage,3)
 %						4 : Hybrid Diffusion With Continuous Switch (HDCS)
     img = FinalImage(:,:,frames); 
     imgRaw = img;
-        Options.T = 5;
-        Options.dt = 1;
-        Options.Scheme = 'R';
-        Options.rho = 5;
-        Options.sigma = 5;
-        Options.verbose = 'none';
-%     imgRawDenoised = CoherenceFilter(imgRaw, Options);
-imgRawDenoised = imgRaw;
+    weinerP=5;
+    imgRawDenoised = wiener2(imgRaw,[weinerP weinerP]);
+
 
     
     %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
@@ -371,6 +372,19 @@ L = watershed(gradmag2,8);
 L(waterBoundary<1) = 0;
 If = L>1;
 
+
+CellObjects = bwconncomp(If,8);
+PX = CellObjects.PixelIdxList;
+pxl = cellfun(@length,PX,'UniformOutput',1);
+pxlog = pxl>((pi.*((nucDiameter).*2)));
+PXX = PX(~pxlog);
+% CellObjects.PixelIdxList = PXX;
+% CellObjects.NumObjects = length(PXX);
+If(vertcat(PXX{:})) = 0;
+
+
+
+
 %%%%%%%%%remove segmentation if it overlaps with the border of theimage%%%%%%%%%%%%%%%%%%%
     Cellstruct = bwconncomp(If);
     PX = Cellstruct.PixelIdxList;
@@ -416,7 +430,11 @@ end
 function If = segmentationMNG(FinalImage,subdirname,scenename,filename,channel,pStruct)
 global nucleus_seg foldernameglobal
 fig=1;
+
+dirlist = dir(strcat(channel));
+if isempty(dirlist)
 mkdir(strcat(channel));
+end
 
 % parameters
 left = 0.004;
@@ -575,7 +593,11 @@ end
 
 function If = segmentationEGFP(FinalImage,channel,scenename,filename,segchannel,pStruct)
 global   nucleus_seg foldernameglobal
+
+dirlist = dir(strcat(segchannel));
+if isempty(dirlist)
 mkdir(strcat(segchannel));
+end
 
 foldername = foldernameglobal;
 % foldername = foldernameglobal;
@@ -650,6 +672,9 @@ finalerode=2;
     %
     percentageOfImageSegmented = round(100*(areaOfSegmentation./(size(img,1)*size(img,2))));
     disp(percentageOfImageSegmented);
+    if percentageOfImageSegmented==100
+        percentageOfImageSegmented=99;
+    end
 %     percentageOfImageSegmented=10;
 %     nucDiameter = nucDiameter.*(percentageOfImageSegmented/50);
 % percentageOfImageSegmented=90;
