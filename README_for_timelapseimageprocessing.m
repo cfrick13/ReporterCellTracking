@@ -44,8 +44,11 @@ disp(FileName)
 
 supertic = tic;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-ExtractMetadataAndImages(B);
+% ExtractMetadataAndImages(B);
 % ExtractMetadataOnly(B);
+FileName = B;
+savename = strcat(B,'-metaData.mat');
+% makeDoseStructFromXLS(savename);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -69,11 +72,13 @@ dontsegment = BACKGROUND;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
+% BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
 totalTime = toc(supertic);
 disp(strcat('total time from extract to flat is=', num2str(totalTime./60),' minutes'));
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SortBKGandFLATcorrectedImagesIntoFolders(A,B,channelstoinput);

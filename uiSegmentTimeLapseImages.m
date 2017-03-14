@@ -541,7 +541,7 @@ function plotTestOut(testOut,channel)
     stringsToTest = {'rawMinusLPScaled','Ihcf','gradmag2','Ieg'};
     else
 %     stringsToTest = {'rawMinusLPScaled','Ih','Ihcd','Shapes'};
-    stringsToTest = {'imgRawDenoised','Ih','gradmag2','fgm4'};
+    stringsToTest = {'imgRawDenoised','Ihcf','gradmag2','fgm4'};
     end
     for i = 1:length(subaxestwo)
     axes(subaxestwo(i))
@@ -574,6 +574,7 @@ nucDiameter = pStruct.(channel).nucDiameter;
 threshFactor = pStruct.(channel).threshFactor;
 sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
 finalerode=2;
+
 
 
 
@@ -610,8 +611,13 @@ for frames = 1:size(FinalImage,3)
 %						4 : Hybrid Diffusion With Continuous Switch (HDCS)
     img = FinalImage(:,:,frames); 
     imgRaw = img;
-    weinerP=5;
-    imgRawDenoised = wiener2(imgRaw,[weinerP weinerP]);
+    
+    if strcmp(channel,'Hoechst')
+    wienerP = 5;
+    end
+    imgRawDenoised = wiener2(imgRaw,[wienerP wienerP]);
+    imgRawDenoised = wiener2(imgRawDenoised,[wienerP wienerP]);
+    imgRawDenoised = wiener2(imgRawDenoised,[wienerP wienerP]);
 
 
     
@@ -674,7 +680,9 @@ for frames = 1:size(FinalImage,3)
     Ihed = imdilate(Ihe,strel('disk',2));
     Ihc = imclose(Ihed,strel('disk',2));
     Ihcf = imfill(Ihc,'holes');
+%     Ihcf = Ih;
     Im=Ihcf;
+    
 
     
 
@@ -698,6 +706,8 @@ for frames = 1:size(FinalImage,3)
 % I = imgRawDenoised;
 % I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
 I = rawMinusLPScaledContrasted;
+I = wiener2(I,[wienerP wienerP]);
+I = wiener2(I,[wienerP wienerP]);
 
 %gradmag
 hy = fspecial('sobel');
@@ -733,14 +743,34 @@ L(waterBoundary<1) = 0;
 If = L>1;
 
 
+
+
 CellObjects = bwconncomp(If,8);
+stats = regionprops(CellObjects,'Area','Perimeter');
+areavec = horzcat(stats.Area);
+perimetervec = horzcat(stats.Perimeter);
+metric = 4.*pi.*areavec./(perimetervec.^2);
+% metric = 4*pi*area/perimeter^2.
+metthresh = 0.6;
+metriclog = (metric>metthresh);
+
+
 PX = CellObjects.PixelIdxList;
 pxl = cellfun(@length,PX,'UniformOutput',1);
-pxlog = pxl>((pi.*((nucDiameter).*2)));
-PXX = PX(~pxlog);
+
+obRad = (nucDiameter./2);
+objectArea = pi.*(obRad.^2);
+% pxlog = pxl>((pi.*((nucDiameter).*2))); %if area is too small
+% PXX = PX(~pxlog);
+pxlogS = pxl>(objectArea./4); %only keep if area is bigger than small limit
+pxlogL = pxl<(objectArea.*8); %only keep if area is smaller than large limit
+
+PXX = PX(~(pxlogS & pxlogL & metriclog));
+
 % CellObjects.PixelIdxList = PXX;
 % CellObjects.NumObjects = length(PXX);
 If(vertcat(PXX{:})) = 0;
+
 
 
 
@@ -987,6 +1017,272 @@ end
 
 end
 
+
+function [IfFinal,testOut] = segmentationImageHoechst(FinalImage,subdirname,scenename,filename,channel)
+global  pStruct 
+
+
+% parameters
+
+%         channel = alterChanName(channel);
+nucDiameter = pStruct.(channel).nucDiameter;
+threshFactor = pStruct.(channel).threshFactor;
+sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
+sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
+
+% threshFactorinitial = threshFactor.*0.5;
+threshFactorinitial = threshFactor;
+
+wiener2a = 10;
+wiener2b =10;
+wiener2c = 10;
+%initial segmentation to determine how much of image is covered by cells
+img = FinalImage(:,:,1); 
+imgW = wiener2(img,[1 wiener2a]);
+imgWW = wiener2(imgW,[wiener2b 1]);
+imgWWW = wiener2(imgWW,[wiener2c wiener2c]);
+imgRawDenoised = imgWWW;
+denoiseVec = single(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+highpoints = prctile(denoiseVec,95);
+imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
+%
+imgLowPass = gaussianBlurz(single(imgRawDenoised),sigma,kernelgsize);
+rawMinusLP = single(imgRawDenoised) -single(imgLowPass);%%%%%%% key step!
+rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+globalMinimaValues = prctile(rawMinusLPvec,0.01);
+globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+rawMinusLPScaled = single(imgRawDenoised) - single(imgLPScaled);
+
+rawMinusLPScaledvec = reshape(rawMinusLPScaled,size(rawMinusLPScaled,1)^2,1);
+high_in = prctile(rawMinusLPScaledvec,99);
+rawMinusLPScaledContrasted = imadjust(rawMinusLPScaled./high_in,[0.1; 0.99],[0; 1]);
+
+vecOG = single(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+logvec = log10(logvecpre);
+vec = logvec;
+[numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+numbersone = medfilt1(numbers, 10); %smooths curve
+numberstwo = medfilt1(numbersone, 100); %smooths curve
+fraction = numberstwo./sum(numberstwo);
+mf = max(fraction);
+    %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+    %%%%%%%%%%%%%%%%%%%% histogram
+    left=0.5*mf;
+    slopedown=0.4*mf;
+    %%%%%%%%%%%%%%%%%%%%%
+leftedge = find(fraction > left,1,'first');
+insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+threshLocation = bincenters(leftedge+insideslopedown-1);
+subtractionThreshold = threshLocation;
+
+if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+    else
+     subtractionThreshold = mean(threshLocation);
+end
+subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactorinitial;
+subtracted = single(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+subzero = (subtracted<0);
+Ih = ~subzero;
+Ih = imclose(Ih,strel('disk',nucDiameter));
+areaOfSegmentation = sum(sum(Ih));
+%
+percentageOfImageSegmented = round(100*(areaOfSegmentation./(size(img,1)*size(img,2))));
+if percentageOfImageSegmented > 99
+    percentageOfImageSegmented = 99;
+end
+disp(percentageOfImageSegmented);
+
+topPixelVals = prctile(imgRawDenoised(Ih),50);
+    
+IfFinal = false(size(FinalImage));
+for frames = 1:size(FinalImage,3)
+
+    img = FinalImage(:,:,frames); 
+    imgW = wiener2(img,[1 wiener2a]);
+    imgWW = wiener2(imgW,[wiener2b 1]);
+    imgWWW = wiener2(imgWW,[wiener2c wiener2c]);
+    imgRawDenoised = imgWWW;
+    denoiseVec = single(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+%     highpoints = prctile(denoiseVec,percentageOfImageSegmented);
+%     highpointslog = imgRawDensoised>toppixelVals;
+    imgRawDenoised(imgRawDenoised>topPixelVals) = topPixelVals;
+
+    
+    %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
+    %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
+    %nuclei -- diameter of nuclei is about 50 to 60))
+    
+    imgLowPass = gaussianBlurz(single(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = single(imgRawDenoised) -single(imgLowPass);%%%%%%% key step!
+    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+    globalMinimaValues = prctile(rawMinusLPvec,0.01);
+    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+    rawMinusLPScaled = single(imgRawDenoised) - single(imgLPScaled);
+
+
+    %determine the threshold by looking for minima in log-scaled histogram
+    %of pixels from rawMinusLPScaled
+    rawMinusLPScaledvec = reshape(rawMinusLPScaled,size(rawMinusLPScaled,1)^2,1);
+    high_in = prctile(rawMinusLPScaledvec,99);
+    rawMinusLPScaledContrasted = imadjust(rawMinusLPScaled./high_in,[0.1; 0.99],[0; 1]);
+    
+    vecOG = single(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+    logvec = log10(logvecpre);
+    vec = logvec;
+    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+    numbersone = medfilt1(numbers, 10); %smooths curve
+    numberstwo = medfilt1(numbersone, 100); %smooths curve
+    fraction = numberstwo./sum(numberstwo);
+    mf = max(fraction);
+        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+        %%%%%%%%%%%%%%%%%%%% histogram
+        left=0.5*mf;
+        slopedown=0.4*mf;
+        %%%%%%%%%%%%%%%%%%%%%
+    leftedge = find(fraction > left,1,'first');
+    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+    threshLocation = bincenters(leftedge+insideslopedown-1);
+    subtractionThreshold = threshLocation;
+
+    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+        else
+         subtractionThreshold = mean(threshLocation);
+    end
+
+
+    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+    subtracted = single(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subzero = (subtracted<0);
+    Im = ~subzero;
+
+    
+%%%%% this is the ultimate addition for watershed segmentation!!!
+    see = strel('disk',1);
+    Isum = Im;
+    Ier = Isum;
+%     figure(2)
+    for i=1:round((nucDiameter/2))
+        Ier = imerode(Ier,see);
+        Isum = Isum+Ier;
+    end
+    Isum(Isum>nucDiameter) = nucDiameter;
+    waterBoundary = imerode(Im,strel('disk',1));
+    
+    
+    
+    
+% I = imgRawDenoised;
+% I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
+I = rawMinusLPScaledContrasted;
+
+%gradmag
+hy = fspecial('sobel');
+hx = hy';
+Iy = imfilter(single(I), hy, 'replicate');
+Ix = imfilter(single(I), hx, 'replicate');
+gradmag = sqrt(Ix.^2 + Iy.^2);
+
+%Smoothing
+I = single(Isum);
+width = round(nucDiameter./10);
+se = strel('disk', width);
+Io = imopen(I, se);
+Ie = imerode(Io, se);
+Ieg = gaussianBlurz(Ie,round(sigma./2),round(kernelgsize./2));
+%     width = round(nucDiameter./10);
+%     Ime = imerode(Ihcf,strel('disk',width));
+%     Imeo = imopen(Ime,strel('disk',width));
+%     Ieg(~Imeo)=0;
+fgm = imregionalmax(Ieg);
+width = round(nucDiameter./10);
+fgm4 = imdilate(fgm,strel('disk',width));
+% fgm4 =fgm;
+bw = Im;
+D = bwdist(bw);
+DL = watershed(D,4);
+bgm = DL == 0;
+% gradmag2 = uint16(imimposemin(gradmag, bgm | fgm4));
+gradmag2 = imimposemin(gradmag, bgm | fgm4);
+
+L = watershed(gradmag2,8);
+L(waterBoundary<1) = 0;
+If = L>1;
+
+
+CellObjects = bwconncomp(If,8);
+stats = regionprops(CellObjects,'Area','Perimeter');
+areavec = horzcat(stats.Area);
+perimetervec = horzcat(stats.Perimeter);
+metric = 4.*pi.*areavec./(perimetervec.^2);
+% metric = 4*pi*area/perimeter^2.
+metthresh = 0.6;
+metriclog = (metric>metthresh);
+
+
+PX = CellObjects.PixelIdxList;
+pxl = cellfun(@length,PX,'UniformOutput',1);
+
+obRad = (nucDiameter./2);
+objectArea = pi.*(obRad.^2);
+% pxlog = pxl>((pi.*((nucDiameter).*2))); %if area is too small
+% PXX = PX(~pxlog);
+pxlogS = pxl>(objectArea./4); %only keep if area is bigger than small limit
+pxlogL = pxl<(objectArea.*8); %only keep if area is smaller than large limit
+
+PXX = PX(~(pxlogS & pxlogL & metriclog));
+
+% CellObjects.PixelIdxList = PXX;
+% CellObjects.NumObjects = length(PXX);
+If(vertcat(PXX{:})) = 0;
+
+
+
+
+
+% figure(3)
+% 
+% subplot(1,7,1);imagesc(I)
+% subplot(1,7,2);imagesc(Io)
+% subplot(1,7,3);imagesc(Ie)
+% subplot(1,7,4);imagesc(Ieg);
+% subplot(1,7,5);imagesc(bgm | fgm4);
+% subplot(1,7,6);imagesc(gradmag2);
+% subplot(1,7,7);imagesc(If);
+
+
+
+    
+    
+    IfFinal(:,:,frames)=If;
+if frames==1
+        testOut.img = img;
+        testOut.imgRawDenoised = imgRawDenoised;
+        testOut.imgLowPass = imgLowPass;
+        testOut.rawMinusLP = rawMinusLP;
+        testOut.rawMinusLPScaled = rawMinusLPScaled;
+        testOut.Ih = Ih;
+        testOut.Ihcf = [];
+        testOut.Im = Im;
+        testOut.Ieg = Ieg;
+        testOut.fgm4 = fgm4;
+        testOut.Ie = Ie;
+        testOut.L = L;
+        testOut.gradmag = gradmag;
+        testOut.gradmag2 = gradmag2;
+%         testOut.waterBoundary = waterBoundary;
+end
+    
+end
+
+
+end
 
 
 function [IfFinal,testOut] = segmentationDIC(FinalImage,subdirname,scenename,filename,channel)
@@ -1694,8 +1990,8 @@ imgfile = dir(strcat('*',ImageDetails.Frame,'*.tif'));
         cd(mstackPath)
         ff = dir(strcat('*',ImageDetails.Scene,'*',ImageDetails.Channel,'*'));
 %         ff = dir(strcat(ImageDetails.Channel,'*'));
-%         channelspacing = round(linspace(1,length(framesForDir),9));
-        channelspacing = [1 4 9 12 15 18 20 22 26];
+        channelspacing = round(linspace(16,timeFrames,9));
+%         channelspacing = [1 4 9 12 15 18 40 45 50];
         if length(channelspacing)>timeFrames
             channelspacing = 1:timeFrames;
         end
@@ -1739,6 +2035,7 @@ elseif strcmp(ImageDetails.Channel,'mNG - 505nm')
 elseif strcmp(ImageDetails.Channel,'mKate')
 [IfStack,testOut] = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);
 elseif strcmp(ImageDetails.Channel,'Hoechst')
+% [IfStack,testOut] = segmentationImageHoechst(FinalImage,subdirname,scenename,filename,channel);
 [IfStack,testOut] = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);
 elseif strcmp(ImageDetails.Channel,'CFP')
 [IfStack,testOut] = segmentationNucleus(FinalImage,subdirname,scenename,filename,channel);

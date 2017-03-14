@@ -16,7 +16,7 @@ channelimgstack =[];
 segmentimgstack =[];
 sfoName =[];
 bfoName = [];
-nucleus_seg = 'mKate';
+nucleus_seg = 'Hoechst';
 cell_quantify = 'EGFP';
 background_seg = 'EGFP';
 
@@ -418,7 +418,7 @@ end
 %% uifunctions
 
 function PMthreshslider(source,callbackdata)
-    global threshinput Imagez
+    global threshinput Imagez 
     str = source.String;
      threshinput.(str) =source.Value;
      
@@ -435,7 +435,7 @@ end
 
 
 function keypress(fig_obj,~)
-global  ImageDetails displaycomments
+global  ImageDetails displaycomments nucleus_seg
 key = get(fig_obj,'CurrentKey');
 
 switch key
@@ -443,7 +443,7 @@ switch key
         ImageDetails.Channel = 'EGFP';
         setSceneAndTime
     case '2'
-        ImageDetails.Channel = 'mKate';
+        ImageDetails.Channel = nucleus_seg;
         setSceneAndTime    
     case '3'
         ImageDetails.Channel = 'mKate';
@@ -3539,7 +3539,7 @@ cd(trackingPath)
 prompt = 'filename of tracking structure to be saved?';
 dlg_title = 'save tracking structure as...specific filename';
 filename = char(inputdlg(prompt,dlg_title));
-
+save(strcat(filename,'_',ImageDetails.Scene,'_',ExportName,'.mat'),'Tracked')
 end
 
 function trackSaveIterate_callback(~,~)
