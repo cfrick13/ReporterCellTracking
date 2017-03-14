@@ -6,7 +6,7 @@ mdir = mfilename('fullpath');
             [~,b] = regexp(mdir,'\');
         end
     parentdir = mdir(1:b(end-1));
-    exportdirz = strcat(parentdir,'Tracking/Export/');
+    exportdirz = strcat(parentdir,'TrackingMstack/Export/');
 cd(exportdirz);
 
 
@@ -188,7 +188,4 @@ function channelinputs =channelregexpmaker(channelstoinput)
         channelinputs(end+1)=')';
     end
 end
-
-
-
 

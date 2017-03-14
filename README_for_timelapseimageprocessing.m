@@ -18,8 +18,10 @@ mdir = mfilename('fullpath');
         if isempty(b)
             [~,b] = regexp(mdir,'\');
         end
-    parentdir = mdir(1:b(end-1));
-exportdir = strcat(parentdir,'Tracking/Export/');
+% parentdir = mdir(1:b(end-1));
+% exportdir = strcat(parentdir,'TrackingMstack/Export/');
+parentdir = mdir(1:b(end));
+exportdir = strcat(parentdir,'Export/');
 
 
 
@@ -29,32 +31,47 @@ exportdir = strcat(parentdir,'Tracking/Export/');
 % for BB = {'2017_01_22 plate','2017_01_25 plate','2017_01_27 plate'};
 % for BB = {'2017_01_30 plate exp2','2017_01_27 plate exp1','2017_01_31 plate exp1'};
 % for BB = {'2017_01_27 plate exp1','2017_01_31 plate exp1'};
-for BB = {'2017_02_27 plate exp2'}
-B = BB{1};
+cd(parentdir)
+
+% for BB = {'2014_09_19 plate exp1','2014_09_27 plate exp1','2014_09_30 plate exp1','2014_10_01 plate exp1','2014_10_04 plate exp1','2014_11_21 plate exp1'}
+% for BB = {'2014_09_27 plate exp1','2014_09_30 plate exp1','2014_10_01 plate exp1','2014_10_04 plate exp1','2014_11_21 plate exp1'}    
+for BB = {'2017_03_13 plate exp1'}
+
+% for BB = {'2017_03_02 plate exp1'}
+B = char(BB);
 FileName = B;
+disp(FileName)
+
+supertic = tic;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ExtractMetadataAndImages(B);
+% ExtractMetadataOnly(B);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 datequery = strcat(FileName,'*DoseAndScene*');
 cd(exportdir)
 filelist = dir(datequery);
     if isempty(filelist)
-        open(strcat(parentdir,'Tracking\ExtractMetadata.m'));
         error(strcat('need to run ExtractMetadata for-',FileName));
 %        dosestruct = makeDoseStruct; %run function to make doseStruct 
     else
         dosestructstruct = load(char(filelist.name));
         dosestruct = dosestructstruct.dosestruct;
     end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% renamemCherrytoMkate(A,B)
-% renamemWRONGtoRIGHT(A,B)
-% cd('D:\Users\zeiss\Documents\MATLAB')
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 A=[];
-channelstoinput = dosestructstruct.channelNames;
+channelstoinput = dosestructstruct.channelNameSwapArray;
 bkg = dosestructstruct.BACKGROUND;
 BACKGROUND = bkg{1};
 dontsegment = BACKGROUND;
-% dontsegment = horzcat(1:5,BACKGROUND);s
-% BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
+% dontsegment = horzcat(1:5,BACKGROUND);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+BackgroundAndFlatfieldCorrectionOfTimeLapseImages(A,B,channelstoinput,BACKGROUND);
+totalTime = toc(supertic);
+disp(strcat('total time from extract to flat is=', num2str(totalTime./60),' minutes'));
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -67,7 +84,7 @@ dontsegment = BACKGROUND;
 % BleachCorrectionOfTimeLapseImages(A,B,channelstoinput);
 % cd('D:\Users\zeiss\Documents\MATLAB')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% dontsegment = [1:6 9:13];
+
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 SegmentationOfTimeLapseImages(A,B,dontsegment);
 % renameDirectoryItems

@@ -1,5 +1,7 @@
 function  SegmentationOfTimeLapseImages(~,datename,BACKGROUND)
-global nucleus_seg foldernameglobal
+
+nucleus_seg = 'Hoechst';
+background_seg = 'EGFP';
 
 mdir = mfilename('fullpath');
     [~,b ] = regexp(mdir,'/');
@@ -7,15 +9,12 @@ mdir = mfilename('fullpath');
             [~,b] = regexp(mdir,'\');
         end
     parentdir = mdir(1:b(end-1));
-cd(strcat(parentdir,datename))
-folderz = dir('*exp*');
-folderzname = {folderz.name};
-dirlog = [folderz.isdir];
-explist = folderzname(dirlog);
-exportdir = strcat(parentdir,'Tracking/Export/');
-
-
-
+experimentdir = strcat(parentdir,datename);   
+exportdir = strcat(parentdir,'TrackingMstack/Export/');
+mstackName = 'flat mstack';
+mstackPath = strcat(experimentdir,'/',mstackName);
+segmentName = 'segment mstack';
+segmentPath = strcat(experimentdir,'/',segmentName);
 
 pStruct = struct();
 parameterDefaults = [106 100 40;...  % nuc diameter [dic egfp mkate]
@@ -34,131 +33,81 @@ end
 pStruct = loadSegmentParameters(pStruct,datename,exportdir); %loads saved value of pStruct
 
 
+for i = 1:length(BACKGROUND)
+    bkstr = num2str(BACKGROUND(i)); 
+    if length(bkstr)>1
+        bkarray{i} = strcat('s',bkstr);
+    else
+        bkarray{i} = strcat('s0',bkstr); 
+    end
+end
+bkinputs =channelregexpmaker(bkarray);
 
 
+cd(experimentdir)
+dirlist = dir((segmentName));
+if isempty(dirlist)
+    mkdir(strcat(segmentName));
+end
 
-%find directories with images
-    for expdircell = explist
-        expdirname = char(expdircell);
-
-
-    primarydir = strcat(parentdir,datename,'/','flatfield_corrected');
-    cd(primarydir)
+cd(mstackPath)
+nucleusFileList = dir(mstackPath);
+[~,~,~,d] = regexp({nucleusFileList.name},'s[0-9]+');
+dlog = ~cellfun(@isempty,d,'UniformOutput',1); 
+dcell = d(dlog);
+SceneList = unique(cellfun(@(x) x{1},dcell,'UniformOutput',0));
     
+[~,~,~,d] = regexp(SceneList,bkinputs);
+bkgscenelog = cellfun(@isempty,d,'UniformOutput',1);
+SceneList = SceneList(bkgscenelog);
 
-
-    primarylist = dir('*_s*');
-    % primarylist = dir('*_s02');
-    subd = {primarylist.name};
-        for i = 1:length(BACKGROUND)
-            bkstr = num2str(BACKGROUND(i)); 
-            if length(bkstr)>1
-                bkarray{i} = strcat('s',bkstr);
-            else
-                bkarray{i} = strcat('s0',bkstr); 
-            end
-        end
-    bkinputs =channelregexpmaker(bkarray);
-    [~,~,~,d] = regexp(subd,bkinputs);
-    subdirlog = cellfun(@isempty,d,'UniformOutput',1);
-    subd = subd(subdirlog);
 
     % parfor i=1:length(subd)
-        for i=1:length(subd)
-            subdir = subd{i};
-            subdirname = char(subdir);
-                [sceneinfo,b] = regexp(subdirname,'s[0-9]+');
-                scenename = subdirname(sceneinfo:b);
-                cd(subdirname)
-            finaldir = dir('*tiffs*');
-                finaldirname = char({finaldir.name});
-                cd(finaldirname)
-            % file = dir('*EGFP_flat.tif*');
+        for i=1:length(SceneList)
+            tic
+            sceneStr = SceneList{i};
+            sceneName = char(sceneStr);
 
-            cd .. 
-            folderlist = dir('*mKate*');
-            foldernameglobal=folderlist.name;
-            nucleus_seg = foldernameglobal;
-            
-            
-            
-            dirlist = dir(nucleus_seg);
-            if isempty(dirlist)
-                dirlist = dir(foldernameglobal);
-                foldername = foldernameglobal;
-            else
-                foldername = nucleus_seg;
+            cd(mstackPath)
+            nucleusFileList = dir(strcat('*',sceneName,'*',nucleus_seg,'*.mat'));
+            if isempty(nucleusFileList)
+                error(strcat('the channel set for "nucleus_seg" ("',nucleus_seg,'") does not exist'))
             end
+          
             
-                cd(finaldirname)
-                file = dir(strcat('*',foldername,'*tif'));
-                filename = char({file.name});
-                FinalImage = double(loadStack(filename));
-                cd ..
-                cd (foldername)
-                filelist = dir('*.tif');
-                fname = filelist(1).name;
-                cd ..
-                disp(scenename)
-                segmentationNucleus(FinalImage,'mKate',scenename,fname,'NucleusBinary_flat',pStruct);
+            nucleusFileName = char(nucleusFileList.name);
+            fileObject = matfile(nucleusFileName);
+            FinalImage = fileObject.flatstack;
+            disp(sceneName)
+            [~,~] = segmentationNucleus(FinalImage,segmentPath,nucleus_seg,nucleusFileName,pStruct);
                 
 
-cd('NucleusBinary_flat')
-filelist = dir('*.tif');
-filenames = {filelist.name};
-FinalImage = zeros(size(FinalImage,1),size(FinalImage,2),length(filenames));
-for jkl = 1:length(filenames)
-    fname = char(filenames{jkl});
-    FinalImage(:,:,jkl) = double(imread(fname));
-end
-cd ..
-% segmentationREPORTERBKG(FinalImage,'mKate',scenename,fname,'BKGbinary_flat',pStruct);
-                
-            dirlist = dir(foldernameglobal);
-            if isempty(dirlist)
-                dirlist = dir(nucleus_seg);
-                foldername = nucleus_seg;
-            else
-                foldername = foldernameglobal;
-            end   
-            cd(finaldirname)
-                file = dir(strcat('*',foldername,'*tif'));
-                filename = char({file.name});
-                FinalImage = double(loadStack(filename));
-                    cd ..
-                    cd (foldername)
-                    filelist = dir('*.tif');
-                    fname = filelist(1).name;
-                    cd ..
-            %     segmentationRFP(FinalImage,subdirname,scenename,fname,'mKatebinary_flat');
+            % %load image of segmented nuclei
+            % cd(segmentPath)
+            % nucleusFileList = dir(strcat('*',sceneName,'*',nucleus_seg,'*.mat'));
+            % nucleusFileName = char(nucleusFileList.name);
+            % fileObject = matfile(nucleusFileName);
+            % FinalImage = fileObject.flatstack;
 
-
-            dirlist = dir('_EGFP_flat');
-            if isempty(dirlist)
-                dirlist = dir(foldernameglobal);
-                foldername = foldernameglobal;
-            else
-                foldername = '_EGFP_flat';
+            %segmentationREPORTERBKG(FinalImage,'mKate',scenename,fname,'BKGbinary_flat',pStruct);
+            %segmentationRFP(FinalImage,subdirname,scenename,fname,'mKatebinary_flat');
+            %segmentationMNG(FinalImage,subdirname,scenename,fname,'EGFPbinary_flat',pStruct);
+            
+            
+            cd(mstackPath)
+            backgroundFileList = dir(strcat('*',sceneName,'*',background_seg,'*.mat'));
+            if isempty(backgroundFileList)
+                error(strcat('the channel set for "background_seg" ("',background_seg,'") does not exist'))
             end
-            cd(finaldirname)
-
-            file = dir(strcat('*',foldername,'*tif'));
-            filename = char({file.name});
-            FinalImage = double(loadStack(filename));
-            cd ..
-            cd (foldername)
-            filelist = dir('*.tif');
-            fname = filelist(1).name;
-            cd ..
-%             segmentationMNG(FinalImage,subdirname,scenename,fname,'EGFPbinary_flat',pStruct);
-            stophere=1;
-%             segmentationBKGsecond(FinalImage,subdirname,scenename,fname,'BKGbinary_flat');
-            segmentationEGFP(FinalImage,'EGFP',scenename,fname,'BKGbinary_flat',pStruct);
+            backgroundFileName = char(backgroundFileList.name);
+            fileObject = matfile(backgroundFileName);
+            FinalImage = fileObject.flatstack;
+            disp(sceneName)
+            [~,~] = segmentationImageBackground(FinalImage,segmentPath,background_seg,backgroundFileName,pStruct);
+            toc
             
             cd ..
         end
-
-    end
 end
 
 
@@ -173,6 +122,8 @@ if ~isempty(filelist)
 loadname = char((filelist.name));
 A = load(loadname); %load pstruct values
 pStruct = A.pStruct;
+else
+    disp('RUN uiSegmentTimeLapseImages to set segmentation parameters')
 end
 
     
@@ -202,59 +153,19 @@ end
 
 
 
-function If = segmentationNucleus(FinalImage,channel,scenename,filename,segchannel,pStruct)
-global foldernameglobal
-% cd(subdirname)
-dirlist = dir(strcat(segchannel));
-if isempty(dirlist)
-mkdir(strcat(segchannel));
-end
+function [IfFinal,testOut] = segmentationNucleus(FinalImage,segmentPath,nucleus_seg,nucleusFileName,pStruct)              
+testOut = struct();
 
-
-
-foldername = foldernameglobal;
-% foldername = foldernameglobal;
-tsn = determineTimeFrame(foldername);
-
-% channel ='mKate';
 % parameters
-nucDiameter = pStruct.(channel).nucDiameter;
-threshFactor = pStruct.(channel).threshFactor;
-sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
-finalerode=2;
+nucDiameter = pStruct.(nucleus_seg).nucDiameter;
+threshFactor = pStruct.(nucleus_seg).threshFactor;
+sigmaScaledToParticle = pStruct.(nucleus_seg).sigmaScaledToParticle;
 
-
-
-% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
 
 %start
-IfFinal = zeros(size(FinalImage));
-for frames = 1:size(FinalImage,3)
-%Smooth Image using Anisotropic Diffusion
-% Options.Scheme :  The numerical diffusion scheme used
-%                     'R', Rotation Invariant, Standard Discretization 
-%                          (implicit) 5x5 kernel (Default)
-%                     'O', Optimized Derivative Kernels
-%                     'I', Implicit Discretization (only works in 2D)
-%                     'S', Standard Discretization
-%                     'N', Non-negativity Discretization
-%   Options.T  :      The total diffusion time (default 5)
-%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
-%                     defaults to 1, in case of scheme S or N defaults to
-%                     0.15. 
-%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
-%                     image Hessian, default 1.                   
-%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
-%                     Hessian, default 1.
-%   Options.verbose : Show information about the filtering, values :
-%                     'none', 'iter' (default) , 'full'
-%   Options.eigenmode : There are many different equations to make an diffusion tensor,
-%						this value (only 3D) selects one.
-%					    0 (default) : Weickerts equation, line like kernel
-%						1 : Weickerts equation, plane like kernel
-%						2 : Edge enhancing diffusion (EED)
-%						3 : Coherence-enhancing diffusion (CED)
-%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
+IfFinal = false(size(FinalImage));
+parfor frames = 1:size(FinalImage,3)
+
     img = FinalImage(:,:,frames); 
     imgRaw = img;
     weinerP=5;
@@ -267,20 +178,26 @@ for frames = 1:size(FinalImage,3)
     %nuclei -- diameter of nuclei is about 50 to 60))
     kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
     sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
-    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
-    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    imgLowPass = gaussianBlurz(single(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = single(imgRawDenoised) -single(imgLowPass);%%%%%%% key step!
     rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
     globalMinimaValues = prctile(rawMinusLPvec,0.01);
     globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
     LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
     imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
-    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+    rawMinusLPScaled = single(imgRawDenoised) - single(imgLPScaled);
 
 
     %determine the threshold by looking for minima in log-scaled histogram
     %of pixels from rawMinusLPScaled
-    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
-    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    rawMinusLPScaledvec = reshape(rawMinusLPScaled,size(rawMinusLPScaled,1)^2,1);
+%     low_in = prctile(rawMinusLPScaledvec,1);
+    high_in = prctile(rawMinusLPScaledvec,99);
+%     low_out = 1;
+%     high_out = intmax('uint16');
+%     rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
+    rawMinusLPScaledContrasted = imadjust(rawMinusLPScaled./high_in,[0.1; 0.99],[0; 1]);
+    vecOG = single(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
     logvecpre = vecOG; logvecpre(logvecpre==0)=[];
     logvec = log10(logvecpre);
     vec = logvec;
@@ -308,7 +225,7 @@ for frames = 1:size(FinalImage,3)
 
 
     subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
-    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subtracted = single(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
     subzero = (subtracted<0);
     Ih = ~subzero;
     Ihe = imerode(Ih,strel('disk',2));
@@ -317,10 +234,7 @@ for frames = 1:size(FinalImage,3)
     Ihcf = imfill(Ihc,'holes');
     Im=Ihcf;
 
-    
-
-    
-    
+  
 %%%%% this is the ultimate addition for watershed segmentation!!!
     see = strel('disk',1);
     Isum = Im;
@@ -335,33 +249,26 @@ for frames = 1:size(FinalImage,3)
     
     
     
-    
-% I = imgRawDenoised;
-% I = gaussianBlurz(rawMinusLPScaled,sigma./4,kernelgsize);
 I = rawMinusLPScaledContrasted;
 
 %gradmag
 hy = fspecial('sobel');
 hx = hy';
-Iy = imfilter(double(I), hy, 'replicate');
-Ix = imfilter(double(I), hx, 'replicate');
+Iy = imfilter(single(I), hy, 'replicate');
+Ix = imfilter(single(I), hx, 'replicate');
 gradmag = sqrt(Ix.^2 + Iy.^2);
 
 %Smoothing
-I = Isum;
+I = single(Isum);
 width = round(nucDiameter./10);
 se = strel('disk', width);
 Io = imopen(I, se);
 Ie = imerode(Io, se);
 Ieg = gaussianBlurz(Ie,round(sigma./2),round(kernelgsize./2));
-%     width = round(nucDiameter./10);
-%     Ime = imerode(Ihcf,strel('disk',width));
-%     Imeo = imopen(Ime,strel('disk',width));
-%     Ieg(~Imeo)=0;
 fgm = imregionalmax(Ieg);
 width = round(nucDiameter./10);
 fgm4 = imdilate(fgm,strel('disk',width));
-% fgm4 =fgm;
+
 bw = Im;
 D = bwdist(bw);
 DL = watershed(D,4);
@@ -378,56 +285,35 @@ PX = CellObjects.PixelIdxList;
 pxl = cellfun(@length,PX,'UniformOutput',1);
 pxlog = pxl>((pi.*((nucDiameter).*2)));
 PXX = PX(~pxlog);
-% CellObjects.PixelIdxList = PXX;
-% CellObjects.NumObjects = length(PXX);
 If(vertcat(PXX{:})) = 0;
 
+    
+    IfFinal(:,:,frames)=If;
 
 
-
-%%%%%%%%%remove segmentation if it overlaps with the border of theimage%%%%%%%%%%%%%%%%%%%
-    Cellstruct = bwconncomp(If);
-    PX = Cellstruct.PixelIdxList;
-    testimage = zeros(size(If));
+    %%%%%%%%%remove segmentation if it overlaps with the border of theimage%%%%%%%%%%%%%%%%%%%
+    testimage = false(size(If));
     edgesize=0;
-    dim = size(FinalImage);
+    dim = size(If);
     testimage(1:(1+edgesize),1:dim(2)) =1; testimage((dim(1)-edgesize):dim(1),1:dim(2)) =1; testimage(1:dim(1),(1:1+edgesize)) =1; testimage(1:dim(1),(dim(2)-edgesize):dim(2)) =1;
-    borderstruct = bwconncomp(testimage);
-    pxborder = borderstruct.PixelIdxList;
-    borderpixels  = pxborder{1};
-%     stophere=1;
-    for pidx = 1:length(PX)
-        px = PX{pidx};
+    borderpixels = find(testimage == 1);
+    for pidx = 1:length(PXX)
+        px = PXX{pidx};
         testlog = ismember(px,borderpixels);
-%         sumtest(pidx) = sum(testlog);
         if sum(testlog)>20
             If(px) = 0;
         end
         
     end
 
+    
+end
 
-    % figure(3)
-    % 
-    % subplot(1,7,1);imagesc(I)
-    % subplot(1,7,2);imagesc(Io)
-    % subplot(1,7,3);imagesc(Ie)
-    % subplot(1,7,4);imagesc(Ieg);
-    % subplot(1,7,5);imagesc(bgm | fgm4);
-    % subplot(1,7,6);imagesc(gradmag2);
-    % subplot(1,7,7);imagesc(If);
-
-
-
-
-        time = tsn{frames};
-        savethatimage(scenename,time,If.*255,frames,filename,segchannel)
-    end
-
+savethatimagestack(IfFinal,nucleusFileName,segmentPath)
 stophere=1;
 end
 
-function If = segmentationMNG(FinalImage,subdirname,scenename,filename,channel,pStruct)
+function If = segmentationCell(FinalImage,subdirname,scenename,filename,channel,pStruct)
 global nucleus_seg foldernameglobal
 fig=1;
 
@@ -585,167 +471,117 @@ stophere=1;
 % time = settimecharacter(frames);
 time = tsn{frames};
 tim = time(2:end);
-savethatimage(scenename,time,If.*255,frames,filename,channel)
+savethatimagestack(scenename,time,If.*255,frames,filename,channel)
 end
 
 
 end
 
-function If = segmentationEGFP(FinalImage,channel,scenename,filename,segchannel,pStruct)
-global   nucleus_seg foldernameglobal
-
-dirlist = dir(strcat(segchannel));
-if isempty(dirlist)
-mkdir(strcat(segchannel));
-end
-
-foldername = foldernameglobal;
-% foldername = foldernameglobal;
-tsn = determineTimeFrame(foldername);
-
+function [IfFinal,testOut] = segmentationImageBackground(FinalImage,segmentPath,background_seg,backgroundFileName,pStruct)
 % parameters
-nucDiameter = pStruct.(channel).nucDiameter;
-threshFactor = pStruct.(channel).threshFactor;
-sigmaScaledToParticle = pStruct.(channel).sigmaScaledToParticle;
+testOut = struct();
+nucDiameter = pStruct.(background_seg).nucDiameter;
+threshFactor = pStruct.(background_seg).threshFactor;
+sigmaScaledToParticle = pStruct.(background_seg).sigmaScaledToParticle;
 kernelgsize = nucDiameter; %set kernelgsize to diameter of nuclei at least
 sigma = nucDiameter./sigmaScaledToParticle; %make the sigma about 1/5th of kernelgsize
 
-finalerode=2;
 
-
-
-% prepareCcodeForAnisotropicDiffusionDenoising(denoisepath)
-
-%start
 
 %initial segmentation to determine how much of image is covered by cells
-    img = FinalImage(:,:,1); 
-    imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
+img = FinalImage(:,:,1); 
+imgW = wiener2(img,[1 20]);
+imgWW = wiener2(imgW,[20 1]);
+imgWWW = wiener2(imgWW,[5 5]);
+imgRawDenoised = imgWWW;
+denoiseVec = single(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+highpoints = prctile(denoiseVec,95);
+imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
+%
+imgLowPass = gaussianBlurz(single(imgRawDenoised),sigma,kernelgsize);
+rawMinusLP = single(imgRawDenoised) -single(imgLowPass);%%%%%%% key step!
+rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
+globalMinimaValues = prctile(rawMinusLPvec,0.01);
+globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
+LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
+imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
+rawMinusLPScaled = single(imgRawDenoised) - single(imgLPScaled);
 
+rawMinusLPScaledvec = reshape(rawMinusLPScaled,size(rawMinusLPScaled,1)^2,1);
+high_in = prctile(rawMinusLPScaledvec,99);
+rawMinusLPScaledContrasted = imadjust(rawMinusLPScaled./high_in,[0.1; 0.99],[0; 1]);
+
+vecOG = single(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+logvecpre = vecOG; logvecpre(logvecpre==0)=[];
+logvec = log10(logvecpre);
+vec = logvec;
+[numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
+numbersone = medfilt1(numbers, 10); %smooths curve
+numberstwo = medfilt1(numbersone, 100); %smooths curve
+fraction = numberstwo./sum(numberstwo);
+mf = max(fraction);
+    %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
+    %%%%%%%%%%%%%%%%%%%% histogram
+    left=0.5*mf;
+    slopedown=0.4*mf;
+    %%%%%%%%%%%%%%%%%%%%%
+leftedge = find(fraction > left,1,'first');
+insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
+threshLocation = bincenters(leftedge+insideslopedown-1);
+subtractionThreshold = threshLocation;
+
+if size(subtractionThreshold,1)==size(subtractionThreshold,2)
+    else
+     subtractionThreshold = mean(threshLocation);
+end
+subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
+subtracted = single(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+subzero = (subtracted<0);
+Ih = ~subzero;
+Ih = imclose(Ih,strel('disk',20));
+areaOfSegmentation = sum(sum(Ih));
+%
+percentageOfImageSegmented = round(100*(areaOfSegmentation./(size(img,1)*size(img,2))));
+if percentageOfImageSegmented > 99
+    percentageOfImageSegmented = 99;
+end
+% disp(percentageOfImageSegmented);
+
+    
+IfFinal = false(size(FinalImage));
+parfor frames = 1:size(FinalImage,3)
+
+    img = FinalImage(:,:,frames); 
     imgW = wiener2(img,[1 20]);
     imgWW = wiener2(imgW,[20 1]);
     imgWWW = wiener2(imgWW,[5 5]);
     imgRawDenoised = imgWWW;
-    denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
-    highpoints = prctile(denoiseVec,95);
-    imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
-    %
-    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
-    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
-    rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
-    globalMinimaValues = prctile(rawMinusLPvec,0.01);
-    globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
-    LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
-    imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
-    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
-    %
-    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
-    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
-    logvecpre = vecOG; logvecpre(logvecpre==0)=[];
-    logvec = log10(logvecpre);
-    vec = logvec;
-    [numbers,bincenters] = hist(vec,prctile(vec,1):(prctile(vec,99)-prctile(vec,1))/1000:max(vec));
-    numbersone = medfilt1(numbers, 10); %smooths curve
-    numberstwo = medfilt1(numbersone, 100); %smooths curve
-    fraction = numberstwo./sum(numberstwo);
-    mf = max(fraction);
-        %%%%%%%%%%%%%%%%%%%% Important parameters for finding minima of
-        %%%%%%%%%%%%%%%%%%%% histogram
-        left=0.5*mf;
-        slopedown=0.4*mf;
-        %%%%%%%%%%%%%%%%%%%%%
-    leftedge = find(fraction > left,1,'first');
-    insideslopedown = find(fraction(leftedge:end) < slopedown,1,'first');
-    threshLocation = bincenters(leftedge+insideslopedown-1);
-    subtractionThreshold = threshLocation;
-
-    if size(subtractionThreshold,1)==size(subtractionThreshold,2)
-        else
-         subtractionThreshold = mean(threshLocation);
-    end
-    subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
-    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
-    subzero = (subtracted<0);
-    Ih = ~subzero;
-    Ih = imclose(Ih,strel('disk',20));
-    areaOfSegmentation = sum(sum(Ih));
-    %
-    percentageOfImageSegmented = round(100*(areaOfSegmentation./(size(img,1)*size(img,2))));
-    disp(percentageOfImageSegmented);
-    if percentageOfImageSegmented==100
-        percentageOfImageSegmented=99;
-    end
-%     percentageOfImageSegmented=10;
-%     nucDiameter = nucDiameter.*(percentageOfImageSegmented/50);
-% percentageOfImageSegmented=90;
-
-
-for frames = 1:size(FinalImage,3)
-%Smooth Image using Anisotropic Diffusion
-% Options.Scheme :  The numerical diffusion scheme used
-%                     'R', Rotation Invariant, Standard Discretization 
-%                          (implicit) 5x5 kernel (Default)
-%                     'O', Optimized Derivative Kernels
-%                     'I', Implicit Discretization (only works in 2D)
-%                     'S', Standard Discretization
-%                     'N', Non-negativity Discretization
-%   Options.T  :      The total diffusion time (default 5)
-%   Options.dt :      Diffusion time stepsize, in case of scheme H,R or I
-%                     defaults to 1, in case of scheme S or N defaults to
-%                     0.15. 
-%   Options.sigma :   Sigma of gaussian smoothing before calculation of the
-%                     image Hessian, default 1.                   
-%   Options.rho :     Rho gives the sigma of the Gaussian smoothing of the 
-%                     Hessian, default 1.
-%   Options.verbose : Show information about the filtering, values :
-%                     'none', 'iter' (default) , 'full'
-%   Options.eigenmode : There are many different equations to make an diffusion tensor,
-%						this value (only 3D) selects one.
-%					    0 (default) : Weickerts equation, line like kernel
-%						1 : Weickerts equation, plane like kernel
-%						2 : Edge enhancing diffusion (EED)
-%						3 : Coherence-enhancing diffusion (CED)
-%						4 : Hybrid Diffusion With Continuous Switch (HDCS)
-     img = FinalImage(:,:,frames); 
-    imgRaw = gaussianBlurz(double(img),ceil(sigma./10),ceil(kernelgsize./10));
-
-    imgW = wiener2(img,[1 20]);
-    imgWW = wiener2(imgW,[20 1]);
-    imgWWW = wiener2(imgWW,[5 5]);
-    imgRawDenoised = imgWWW;
-    denoiseVec = double(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
+    denoiseVec = single(reshape(imgRawDenoised,size(imgRawDenoised,1)^2,1));
     highpoints = prctile(denoiseVec,percentageOfImageSegmented);
     imgRawDenoised(imgRawDenoised>highpoints) = highpoints;
-    
- 
-%         Options.T = 5;
-%         Options.dt = 1;
-%         Options.Scheme = 'R';
-%         Options.rho = 20;
-%         Options.sigma = 20;
-%         Options.verbose = 'none';ii
-% %     imgRawDenoised = CoherenceFilter(imgRaw, Options);
-% % imgRawDenoised = imgRaw;
 
     
     %Based on algorithm of Fast and accurate automated cell boundary determination for fluorescence microscopy by Arce et al (2013)   
     %LOW PASS FILTER THE IMAGE (scale the gaussian filter to diameter of
     %nuclei -- diameter of nuclei is about 50 to 60))
     
-    imgLowPass = gaussianBlurz(double(imgRawDenoised),sigma,kernelgsize);
-    rawMinusLP = double(imgRawDenoised) -double(imgLowPass);%%%%%%% key step!
+    imgLowPass = gaussianBlurz(single(imgRawDenoised),sigma,kernelgsize);
+    rawMinusLP = single(imgRawDenoised) -single(imgLowPass);%%%%%%% key step!
     rawMinusLPvec = reshape(rawMinusLP,size(rawMinusLP,1)^2,1);
     globalMinimaValues = prctile(rawMinusLPvec,0.01);
     globalMinimaIndices = find(rawMinusLP < globalMinimaValues);
     LPscalingFactor = imgRawDenoised(globalMinimaIndices)./imgLowPass(globalMinimaIndices);
     imgLPScaled = imgLowPass.*nanmedian(LPscalingFactor);
-    rawMinusLPScaled = double(imgRawDenoised) - double(imgLPScaled);
+    rawMinusLPScaled = single(imgRawDenoised) - single(imgLPScaled);
 
 
     %determine the threshold by looking for minima in log-scaled histogram
     %of pixels from rawMinusLPScaled
-    rawMinusLPScaledContrasted = imadjust(uint16(rawMinusLPScaled));
-    vecOG = double(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
+    rawMinusLPScaledvec = reshape(rawMinusLPScaled,size(rawMinusLPScaled,1)^2,1);
+    high_in = prctile(rawMinusLPScaledvec,99);
+    rawMinusLPScaledContrasted = imadjust(rawMinusLPScaled./high_in,[0.1; 0.99],[0; 1]);
+    
+    vecOG = single(reshape(rawMinusLPScaledContrasted,size(rawMinusLPScaledContrasted,1)^2,1));
     logvecpre = vecOG; logvecpre(logvecpre==0)=[];
     logvec = log10(logvecpre);
     vec = logvec;
@@ -771,32 +607,22 @@ for frames = 1:size(FinalImage,3)
 
 
     subtractionThresholdScaled = (10.^subtractionThreshold).*threshFactor;
-    subtracted = double(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
+    subtracted = single(rawMinusLPScaledContrasted)-subtractionThresholdScaled;
     subzero = (subtracted<0);
     Ih = ~subzero;
 
-%     Ihd = imdilate(Ih,strel('disk',1));
-%     Ihdc = imclose(Ihd,strel('disk',2));
-%     Ihdcf = imfill(Ihdc,'holes');
-%     Im = Ihdcf;
     width = 10;
     Ihc = imclose(Ih,strel('disk',width));
-%     Ihcf = imfill(Ihc,'holes');
-%     Ihcf = Ihc;
-%     Ihcd = imdilate(Ihc,strel('disk',width));
-%     Ihcfd = Ihcf;
     Im=Ihc;
-    If =Im;
 
 
-If = imgRawDenoised;
-mmIf = max(max(If)) ;
-If(If<mmIf)=0;
-If(If == mmIf)=1;
-If = logical(If);
-stophere=1;
-arealimit = (100-percentageOfImageSegmented)./8;
-imgarea = (size(If,1).*size(If,2));
+    If = imgRawDenoised;
+    mmIf = max(max(If)) ;
+    If(If<mmIf)=0;
+    If(If == mmIf)=1;
+    If = logical(If);
+    arealimit = (100-percentageOfImageSegmented)./8;
+    imgarea = (size(If,1).*size(If,2));
 
    a = length(If==0);
    width = 10;
@@ -809,25 +635,14 @@ imgarea = (size(If,1).*size(If,2));
        else
             Ig = imdilate(Ig,se);
        end
-%        disp(a)
+
    end
-%     imagesc(Ig)
 
     If=Ig;
-
-
-
-
-
-    
-    time = tsn{frames};
-    tim = time(2:end);
-%     IfFinal(:,:,frames)=If;
-    savethatimage(scenename,time,If.*255,frames,filename,segchannel)
+    IfFinal(:,:,frames)=If;
 end
 
-
-stophere=1;
+savethatimagestack(IfFinal,backgroundFileName,segmentPath)
 end
 
 
@@ -859,61 +674,19 @@ If = ~Ifd;
     time = tsn{frames};
     tim = time(2:end);
 %     IfFinal(:,:,frames)=If;
-    savethatimage(scenename,time,If.*255,frames,filename,segchannel)
+    savethatimagestack(scenename,time,If.*255,frames,filename,segchannel)
 end
 
 
 stophere=1;
 end
 
+function savethatimagestack(IfFinal,filename,segmentPath)
+olddir  = pwd;
+cd(segmentPath)
+save(filename,'IfFinal','-v7.3');
+cd (olddir)
 
-
-
-function savethatimage(scenename,time,Ie,frames,filename,channel)
-cd(channel)
-
-[a,b] = regexp(filename,'(_mKate|CFP|EGFP|DIC)');
-fname = strcat(filename(1:a-1),channel,filename(b+1:end));
-fname = filename;
-
-[a,b] = regexp(fname,'_t[0-9]+');
-fname(a:b) = strcat('_',time);
-% % % if isempty(a)
-% % %     [a,b] = regexp(fname,'t[0-9][0-9]');
-% % %     tnum = str2double(fname(a+1:b))-1;
-% % %     tm = round(tnum+str2double(time));
-% % %     time = settimecharacter(tm);
-% % %     if (length(time)>length(fname(a+1:b)))
-% % %     time(1) = 't';
-% % %     else
-% % %     time = horzcat('t',time);
-% % % %     disp(strcat('time',time));
-% % %     end
-% % %     fname(a:b) = time;
-% % % else
-% % %     time = horzcat('t',time);
-% % % %     disp(strcat('2time',time));
-% % %     fname(a:b) = time;
-% % % end
-% if length(time)==length(fname(a+1:b))
-% time = horzcat('t',time);
-% fname(a:b) = time;
-% elseif length(fname(a+1:b))<length(time)
-% time = horzcat('t',time(2:end));
-% fname(a:b) = time;
-% end
-
-imwrite(uint8(Ie),fname,'tiff','WriteMode','overwrite');
-cd .. 
-
-% cd('tiffs')
-% % imwrite(uint8(Ie),strcat(scenename,'_','t',time,'_NucleusBinary_flat.tif'));
-% if ~isempty(dir(strcat(channel(1:2),'*'))) && frames == 1
-% imwrite(uint8(Ie),strcat(channel,'.tif'),'tiff','WriteMode','overwrite');
-% else
-% imwrite(uint8(Ie),strcat(channel,'.tif'),'tiff','WriteMode','append');
-% end
-% cd ..
 
 end
 
@@ -944,8 +717,6 @@ else
     bw=lapFrame;
 end
 end
-
-
 
 function kernel = chooseKernel(ksize)
 if ksize ==5
@@ -982,7 +753,6 @@ end
 end
 
 
-
 function  LoGstack = LaplacianOfGaussianStack(imgstack,dims,ksize)
         LoGstack = zeros(dims(1),dims(2),dims(3));
         for i = 1:size(imgstack,3)
@@ -1003,7 +773,6 @@ tnames = cellfun(@(x) x{1},d,'UniformOutput',0);
 tsn = sort(tnames);
 cd ..
 end
-
 
 function channelinputs =channelregexpmaker(channelstoinput)
     channelinputs = '(';
